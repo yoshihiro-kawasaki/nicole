@@ -1,0 +1,9 @@
+species_file       : input/species.txt
+reaction_file      : input/reactions.txt
+abundance_file     : input/abundances.txt
+dust_model         : single_size_model
+number_of_bins     : 1
+max_charge_of_dust : 1
+dust_grain_species : 3
+total_spcies       : 30
+total_reaction     : 177

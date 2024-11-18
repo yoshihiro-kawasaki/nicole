@@ -1,0 +1,45 @@
+output file contents
+
+## species file 
+index   species   mass   charge
+
+if species is electron or dust grain, mass = 0.
+
+# DUST_DISTRIBUTION = False
+
+ex) G-1, G0, G+1
+
+# DUST_DISTRIBUTION = True 
+
+ex) Gs1c-1, Gs2c+3, Gs3c0  (s : bin, c : charge)
+
+
+## reaction_file
+index   reaction_type   reactant1   reactant2   product1   product2   product3   product4   a   b   c   d   e 
+
+a, b, c, d, and e are values for calculating reaction coefficient.
+
+reaction_type : Gas phase reaction
+    IONIZATION                    = IO 
+    ASSOCIATIVE_DETACHMENT        = AD 
+    COLLISIONAL_DISSOCIATION      = CD  
+    CHARGE_EXCHANGE               = CE 
+    COSMIC_RAY_PROTON             = CP 
+    COSMIC_RAY_PHOTON             = CR  
+    DISSOCIATIVE_RECOMBINATION    = DR  
+    ION_NEUTRAL                   = IN  
+    MUTUAL_NEUTRALIZATION         = MN  
+    NEUTRAL_NEUTRAL               = NN  
+    PHOTOPROCESS                  = PH  
+    RADIATIVE_ASSOCIATION         = RE  
+    RADIATIVE_ELECTRON_ATTACHMENT = REA 
+    RADIATIVE_RECOMBINATION       = RR 
+
+a = alpha, b = beta, c = gamma, d = lower limit of temperature, e = upper limit temperature
+these value are taken from UMIST databese.
+
+# DUST_DISTRIBUTION = False
+
+
+
+# DUST_DISTRIBUTION = True 
