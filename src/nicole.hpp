@@ -4,7 +4,7 @@
 #include "typedefs.hpp"
 #include "physical_constants.hpp"
 #include "dust.hpp"
-#include "lsoda_cpp/lsoda.hpp"
+#include "lsoda.hpp"
 
 class Nicole
     : public Dust

@@ -16,8 +16,8 @@ objects = src/main.o \
 		  src/nicole.o \
 		  src/dust.o \
 		  src/utils.o \
-		  src/lsoda_cpp/lsoda.o \
-		  src/lsoda_cpp/linear.o 
+		  src/lsoda.o \
+		  src/linear.o 
 
 run: $(objects)
 	$(CPP) -o run $(objects) $(LFLAGS)
@@ -34,11 +34,11 @@ src/dust.o: src/dust.hpp src/dust.cpp
 src/utils.o: src/utils.hpp src/utils.cpp 
 	(cd src; $(CPP) $(CFLAGS) $(DEPENDPATH) utils.cpp)
 
-src/lsoda_cpp/linear.o: src/lsoda_cpp/linear.hpp src/lsoda_cpp/linear.cpp 
-	(cd src/lsoda_cpp; $(CPP) $(CFLAGS) $(DEPENDPATH) linear.cpp)
+src/linear.o: src/linear.hpp src/linear.cpp 
+	(cd src; $(CPP) $(CFLAGS) $(DEPENDPATH) linear.cpp)
 
-src/lsoda_cpp/lsoda.o: src/lsoda_cpp/lsoda.hpp src/lsoda_cpp/lsoda.cpp 
-	(cd src/lsoda_cpp; $(CPP) $(CFLAGS) $(DEPENDPATH) lsoda.cpp)
+src/lsoda.o: src/lsoda.hpp src/lsoda.cpp 
+	(cd src; $(CPP) $(CFLAGS) $(DEPENDPATH) lsoda.cpp)
 
 clean:
 	rm run $(objects)
