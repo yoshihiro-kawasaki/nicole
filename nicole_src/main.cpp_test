@@ -1,0 +1,311 @@
+#include <iostream>
+#include <fstream>
+#include <cmath>
+
+#include "nicole.hpp"
+
+void TestRun();
+void TestResistivity();
+
+double FreeFalltime(const double rhog) 
+{
+    return std::sqrt(3.0 * M_PI / (32.0 * constants::kGravitationalConstant * rhog));
+}
+
+double BarotropicEOS(const double rhog) 
+{
+    // Tsukamoto et al. 2020
+    const double gamma = 7.0/5.0;
+    const double rho_crit = 4.0e-14;
+    const double T = 10 * (1 + gamma*std::pow(rhog/rho_crit, gamma - 1));
+    return T;
+}
+
+double IonizationRate(const double rhog, const double T) 
+{
+    const double SigmaCR = 96.0;
+    const double Sigma = std::sqrt(constants::kBoltzmannConstant * T * rhog / (M_PI * constants::kGravitationalConstant * constants::kGasMolecularMass));
+    const double zetaCR0 = 1.3e-17;
+    const double zetaCR = zetaCR0 * std::exp(-Sigma / SigmaCR);
+    const double zetaRA = 1.1e-22;
+    return zetaCR + zetaRA;
+}
+
+double MagneticField(const double nH) 
+{
+    return 1.43e-7 * std::sqrt(nH);
+}
+
+
+int main() {
+    TestRun();
+    // TestResistivity();
+    return 0;
+}
+
+void TestRun() 
+{
+    // ユーザー設定の化学種
+    std::vector<std::string> user_gas_species_list = {
+        "H", "H2", "He", "CO", "O2", "Mg", "O", "C", "HCO", "H2O", 
+        "OH", "H3+", "H2+", "H+", "HCO+", "Mg+", "He+", "C+", "O+", 
+        "CO+", "CH2+", "O2+", "H3O+", "OH+", "H2O+", "e-"
+    };
+
+    // inputファイル
+    std::string filename = "input.txt";
+    InputConfig input(filename);
+    
+    // 元素に関する管理クラスのオブジェクト生成
+    nicole::ElementManager element_manager(input);
+
+    // 化学種に関する管理クラスのオブジェクト生成
+    nicole::SpeciesManager species_manager(&element_manager, input);
+    // nicole::SpeciesManager species_manager(&element_manager, input, user_gas_species_list);
+    std::string check_species_filename = "check_species.txt";
+    species_manager.CheckSpeciesManager(check_species_filename);
+
+    // 反応に関する管理クラスのオブジェクト生成
+    nicole::ReactionManager reaction_manager(&species_manager, input);
+    std::string check_reaction_file = "check_reaction_file.txt";
+    reaction_manager.CheckReactionManager(check_reaction_file);
+
+    // 化学反応計算に必要な物理パラメータの設定
+    nicole::EnvironmentParameters environment_parameters;
+    environment_parameters.gas_number_density = 1.0e6;
+    const double rhog = 1.4 * constants::kProtonMass * environment_parameters.gas_number_density;
+    environment_parameters.gas_temperature = BarotropicEOS(rhog); // 10.0;
+    environment_parameters.cosmic_ray_ionization_rate = 1.3e-17;
+    environment_parameters.x_rays_ionization_rate = 0.0;
+    environment_parameters.visual_extinction = 15.0;
+    environment_parameters.scaling_factor_uv_field = 1.0;
+
+    std::cout << std::scientific << "T = " << environment_parameters.gas_temperature << std::endl;
+
+    // 化学反応計算のクラスのオブジェクト生成
+    nicole::ReactionSimulator reaction_simulator(&species_manager, &reaction_manager, &environment_parameters, input);
+    std::string check_rate_file = "check_rate_file.txt";
+    reaction_simulator.CheckReactionRateCoefficient(check_rate_file);
+
+    // 化学種の存在量を格納する配列の初期化
+    const std::size_t number_of_species = species_manager.GetNumberOfTotalSpecies();
+    double species_abundances[number_of_species];
+    reaction_simulator.SetInitialSpeciesAbundances(species_abundances);
+
+    // for (int i = 0; i < number_of_species; ++i) {
+    //     if (species_abundances[i] == 0.0) continue;
+    //     std::cout << "x[" << std::setw(12) << species_manager.GetSpeciesName(i) << "] = " << std::scientific << species_abundances[i] << std::endl;
+    // }
+
+    // 積分時間に関する設定
+    double t = 0.0;
+    double tout = 1.0e-1 * constants::kSolarYear;
+    // const double tend = 1.0e6 * constants::kSolarYear;
+    const double tend = FreeFalltime(rhog) * 10.0; // 1.0e6 * constants::kSolarYear;
+    std::cout << "tend = " << (tend / constants::kSolarYear) << std::endl;
+    if (tout > tend) tout = 1.0e-2 * tend;
+    int nstep = 100;
+    const double tstep = std::pow(10.0, std::log10(tend/tout)/static_cast<double>(nstep - 1));
+
+    return;
+
+    // outputの設定
+    const std::string output_file = "test.txt";
+    std::ofstream file(output_file, std::ios::out | std::ios::trunc);
+    if (!file.is_open()) {
+        return;
+    }
+
+    // ファイルの１行目にラベル(時間、化学種)の記述
+    file << std::setw(12) << "time" << " ";
+    for (int i = 0; i < number_of_species; ++i) {
+        file << std::setw(12) << species_manager.GetSpeciesName(i) << " ";
+    }
+    file << std::endl;
+
+    // 初期存在量の記述
+    file << std::scientific << std::setw(12) << t << " ";
+    for (int i = 0; i < number_of_species; ++i) {
+        file << std::setw(12) << species_abundances[i] << " ";
+    }
+    file << std::endl;
+
+    // 積分の実行
+    for (int i = 1; i <= nstep; ++i) {
+        const double dt = tout - t;
+        bool success = reaction_simulator.Integrate(t, tout, species_abundances, file);
+        // std::cout << std::scientific << (dt/constants::kSolarYear) << " " << (t/constants::kSolarYear) << " " << (tout/constants::kSolarYear) << std::endl;
+        tout *= tstep;
+        if (!success) break;
+    }
+    // 計算結果の確認
+    reaction_simulator.CheckCalculationResult(species_abundances);
+
+    file.close();
+
+    // 磁場の設定
+    environment_parameters.magnetic_field = MagneticField(environment_parameters.gas_number_density); // 1.0e-5;
+
+    // 非理想磁気流体の磁気抵抗率の計算のクラスのオブジェクト生成
+    nicole::NonIdealMHDeffect non_ideal_mhd_effect(&species_manager, &environment_parameters);
+    non_ideal_mhd_effect.CalculateHallParameters(species_abundances);
+    non_ideal_mhd_effect.CalculateConductivities(species_abundances);
+    non_ideal_mhd_effect.CalculateResistivities();
+
+    // 磁気抵抗率の取得
+    double etaO, etaH, etaA;
+    non_ideal_mhd_effect.GetResistivite(etaO, etaH, etaA);
+    std::cout << "etaO = " << std::scientific << etaO << std::endl;
+    std::cout << "etaH = " << std::scientific << etaH << std::endl;
+    std::cout << "etaA = " << std::scientific << etaA << std::endl;
+
+}
+
+void TestResistivity() 
+{
+    // ユーザー設定の化学種
+    // std::vector<std::string> user_gas_species_list = {
+    //     "H", "H2", "He", "CO", "O2", "Mg", "O", "C", "HCO", "H2O", 
+    //     "OH", "H3+", "H2+", "H+", "HCO+", "Mg+", "He+", "C+", "O+", 
+    //     "CO+", "CH2+", "O2+", "H3O+", "OH+", "H2O+", "e-"
+    // };
+
+    std::vector<std::string> user_gas_species_list = {
+        "H", "H2", "He", "CO", "O2", "Mg", "O", "C", "HCO", "H2O", "OH", 
+        "H3+", "H2+", "H+", "HCO+", "Mg+", "He+", "C+", "O+", "O2+", "H3O+", 
+        "OH+","H2O+", "e-"
+    };
+
+    // std::vector<std::string> user_gas_species_list = {
+    //     "H2", "H", "He", "C", "CH", "CH2", "CH3", "CH4", "N", "N2", "NH", "NH2", 
+    //     "NH3", "O", "O2", "OH", "H2O", "CO", "CO2", "Mg", "Fe", "H+", "H2+", "H3+",
+    //     "He+", "HeH+", "C+", "CH+", "CH2+", "CH3+", "CH4+", "CH5+", "N+", "N2+",
+    //     "N2H+", "NH+", "NH2+", "NH3+", "NH4+", "O+", "O2+", "O2H+", "OH+", "H2O+",
+    //     "H3O+", "CO+", "HCO+", "CO2+", "HCO2+", "NO+", "Mg+", "Fe+", "e-"
+    // };
+
+    // inputファイル
+    std::string filename = "input.txt";
+    InputConfig input(filename);
+    
+    // 元素に関する管理クラスのオブジェクト生成
+    nicole::ElementManager element_manager(input);
+
+    // 化学種に関する管理クラスのオブジェクト生成
+    // nicole::SpeciesManager species_manager(&element_manager, input);
+    nicole::SpeciesManager species_manager(&element_manager, input, user_gas_species_list);
+    std::string check_species_filename = "check_species.txt";
+    species_manager.CheckSpeciesManager(check_species_filename);
+
+    // 反応に関する管理クラスのオブジェクト生成
+    nicole::ReactionManager reaction_manager(&species_manager, input);
+    std::string check_reaction_file = "check_reaction_file.txt";
+    reaction_manager.CheckReactionManager(check_reaction_file);
+
+    // 化学反応計算に必要な物理パラメータの設定
+    nicole::EnvironmentParameters environment_parameters;
+    environment_parameters.gas_number_density = 2.0e5;
+    environment_parameters.gas_temperature = 10.0;
+    environment_parameters.cosmic_ray_ionization_rate = 1.0e-17;
+    environment_parameters.x_rays_ionization_rate = 0.0;
+    environment_parameters.visual_extinction = 15.0;
+    environment_parameters.scaling_factor_uv_field = 0.0;
+
+    // 化学反応計算のクラスのオブジェクト生成
+    nicole::ReactionSimulator reaction_simulator(&species_manager, &reaction_manager, &environment_parameters, input);
+    std::string check_rate_file = "check_rate_file.txt";
+    reaction_simulator.CheckReactionRateCoefficient(check_rate_file);
+
+    // 非理想磁気流体の磁気抵抗率の計算のクラスのオブジェクト生成
+    nicole::NonIdealMHDeffect non_ideal_mhd_effect(&species_manager, &environment_parameters);
+
+    // output fileの設定
+    const std::string output_file = "test_resistivity.txt";
+    std::ofstream file(output_file, std::ios::out | std::ios::trunc);
+    if (!file.is_open()) {
+        return;
+    }
+
+    // ファイルの１行目にラベル(時間、化学種)の記述
+    const std::size_t number_of_species = species_manager.GetNumberOfTotalSpecies();
+    file << std::setw(14) << "ng" << " "
+         << std::setw(14) << "T"  << " "
+         << std::setw(14) << "B"  << " ";
+    for (int i = 0; i < number_of_species; ++i) {
+        file << std::setw(14) << species_manager.GetSpeciesName(i) << " ";
+    }
+    file << std::setw(14) << "etaO" << " "
+         << std::setw(14) << "etaH"  << " "
+         << std::setw(14) << "etaA"  << std::endl;
+
+    const double gas_number_density_start = 1.0e4;
+    const double gas_number_density_end = 1.0e15;
+    const int nn = 200;
+    const double dlogn = (std::log10(gas_number_density_end) - std::log10(gas_number_density_start)) / static_cast<double>(nn - 1);
+
+    // 化学種の存在量を格納する配列の初期化
+    // const std::size_t number_of_species = species_manager.GetNumberOfTotalSpecies();
+    double species_abundances[number_of_species];
+    reaction_simulator.SetInitialSpeciesAbundances(species_abundances);
+
+    for (int i = 0; i < nn; ++i) {
+
+        // set number density and temperature
+        double gas_number_density = std::pow(10.0, std::log10(gas_number_density_start) + dlogn * static_cast<double>(i));
+        double gas_mass_density = 1.4 * constants::kProtonMass * gas_number_density;
+        double gas_temperature = BarotropicEOS(gas_mass_density);
+        double ionization_rate = IonizationRate(gas_mass_density, gas_temperature);
+
+        environment_parameters.gas_number_density = gas_number_density;
+        environment_parameters.gas_temperature = gas_temperature;
+        environment_parameters.cosmic_ray_ionization_rate = ionization_rate;
+
+        // 化学種の存在量を格納する配列の初期化
+        // const std::size_t number_of_species = species_manager.GetNumberOfTotalSpecies();
+        // double species_abundances[number_of_species];
+        // reaction_simulator.SetInitialSpeciesAbundances(species_abundances);
+
+        // 積分時間に関する設定
+        double t = 0.0;
+        double tend = FreeFalltime(gas_mass_density) * 10.0;
+        double tout = 1.0e-1 * constants::kSolarYear;
+        if (tout > tend) tout = 1.0e-2 * tend;
+        int nstep = 100;
+        const double tstep = std::pow(10.0, std::log10(tend/tout)/static_cast<double>(nstep - 1));
+
+        reaction_simulator.CalculateRateCoefficient();
+        // 積分の実行
+        for (int i = 1; i <= nstep; ++i) {
+            bool success = reaction_simulator.Integrate(t, tout, species_abundances);
+            tout *= tstep;
+            if (!success) break;
+        }
+
+        // 磁場の設定
+        const double magnetic_field = MagneticField(gas_number_density);
+        environment_parameters.magnetic_field = magnetic_field;
+
+        // 非理想磁気流体の磁気抵抗率の計算
+        non_ideal_mhd_effect.CalculateHallParameters(species_abundances);
+        non_ideal_mhd_effect.CalculateConductivities(species_abundances);
+        non_ideal_mhd_effect.CalculateResistivities();
+
+        // 磁気抵抗率の取得
+        double etaO, etaH, etaA;
+        non_ideal_mhd_effect.GetResistivite(etaO, etaH, etaA);
+
+        file << std::scientific;
+        file << std::setw(14) << gas_number_density << " " 
+             << std::setw(14) << gas_temperature << " "
+             << std::setw(14) << magnetic_field << " ";
+        for (int i = 0; i < number_of_species; ++i) {
+            file << std::setw(14) << species_abundances[i] << " ";
+        }
+        file << std::setw(14) << etaO << " "
+             << std::setw(14) << etaH << " "
+             << std::setw(14) << etaA << std::endl;
+    }
+
+
+    file.close();
+}
