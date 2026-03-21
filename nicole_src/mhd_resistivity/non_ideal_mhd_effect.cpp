@@ -33,7 +33,7 @@ namespace nicole
         }
 
         // allocate arrays
-        int number_of_species = ptr_species_manager_->number_of_total_species_;
+        int number_of_species = ptr_species_manager_->total_number_of_species_;
         hall_parameters_.resize(number_of_species);
         ohmic_conductivity_.species_.resize(number_of_species);
         hall_conductivity_.species_.resize(number_of_species);
@@ -63,7 +63,7 @@ namespace nicole
      */
     void NonIdealMHDeffect::CalculateHallParameters(const double *species_abundances)
     {
-        const std::size_t number_of_species = ptr_species_manager_->number_of_total_species_;
+        const std::size_t number_of_species = ptr_species_manager_->total_number_of_species_;
         const double gas_number_density = ptr_environment_parameters_->gas_number_density;
 
         // Calculate mass density of H, H2, He based on species abundances.
@@ -236,7 +236,7 @@ namespace nicole
         const double number_density = ptr_environment_parameters_->gas_number_density;
         const double magnetic_field = ptr_environment_parameters_->magnetic_field;
         const double ecn_B = constants::kChargeUnit * constants::kSpeedOfLight * number_density / magnetic_field;
-        const std::size_t number_of_species = ptr_species_manager_->number_of_total_species_;
+        const std::size_t number_of_species = ptr_species_manager_->total_number_of_species_;
 
         // Calculate individual species conductivities
         for (std::size_t ispe = 0; ispe < number_of_species; ++ispe) {
@@ -270,5 +270,140 @@ namespace nicole
         resistivity_.ohmic_     = coef_res / ohmic_conductivity_.total_;
         resistivity_.hall_      = coef_res * hall_conductivity_.total_ / sigma_perp2;
         resistivity_.ambipolar_ = coef_res * pedersen_conductivity_.total_ / sigma_perp2 - resistivity_.ohmic_;
+    }
+
+    /**
+     * @brief Get the Ohmic conductivity of a species by its name.
+     * 
+     * This function retrieves the Hall conductivity of a species using its name.
+     * If the species is not found or the index is out of range, it returns 0.0.
+     * 
+     * @param species_name The name of the species.
+     * @return The Ohmic conductivity of the species, or 0.0 if the species is not found.
+     */
+    double NonIdealMHDeffect::GetSpeciesOhmicConductivityByName(const std::string& species_name) const
+    {
+        // Check if the Ohmic conductivity data is empty
+        if (ohmic_conductivity_.species_.empty()) return 0.0;
+
+        // Find the index of the species by its name
+        std::size_t index = ptr_species_manager_->FindSpeciesIndex(species_name);
+
+        // Check if the index is out of bounds
+        if (index >= ptr_species_manager_->total_number_of_species_) return 0.0;
+
+        // Return the Ohmic conductivity of the specified species
+        return ohmic_conductivity_.species_[index];
+    }
+
+    /**
+     * @brief Get the Ohmic conductivity of a species by its index.
+     * 
+     * This function retrieves the Ohmic conductivity of a species using its index.
+     * If the index is out of range or the Ohmic conductivity data is empty, it returns 0.0.
+     * 
+     * @param index The index of the species.
+     * @return The Ohmic conductivity of the species, or 0.0 if the index is invalid.
+     */
+    double NonIdealMHDeffect::GetSpeciesOhmicConductivityByIndex(const std::size_t index) const
+    {
+        // Check if the index is out of bounds
+        if (index >= ptr_species_manager_->total_number_of_species_) return 0.0;
+
+        // Check if the Ohmic conductivity data is empty
+        if (ohmic_conductivity_.species_.empty()) return 0.0;
+
+        // Return the Ohmic conductivity of the specified species
+        return ohmic_conductivity_.species_[index];
+    }
+
+    /**
+     * @brief Get the Hall conductivity of a species by its name.
+     * 
+     * This function retrieves the Hall conductivity of a species using its name.
+     * If the species is not found or the index is out of range, it returns 0.0.
+     * 
+     * @param species_name The name of the species.
+     * @return The Hall conductivity of the species, or 0.0 if the species is not found.
+     */
+    double NonIdealMHDeffect::GetSpeciesHallConductivityByName(const std::string& species_name) const
+    {
+        // Check if the Hall conductivity data is empty
+        if (hall_conductivity_.species_.empty()) return 0.0;
+
+        // Find the index of the species by its name
+        std::size_t index = ptr_species_manager_->FindSpeciesIndex(species_name);
+
+        // Check if the index is out of bounds
+        if (index >= ptr_species_manager_->total_number_of_species_) return 0.0;
+
+        // Return the Hall conductivity of the specified species
+        return ohmic_conductivity_.species_[index];
+    }
+
+    /**
+     * @brief Get the Hall conductivity of a species by its index.
+     * 
+     * This function retrieves the Hall conductivity of a species using its index.
+     * If the index is out of range or the Hall conductivity data is empty, it returns 0.0.
+     * 
+     * @param index The index of the species.
+     * @return The Hall conductivity of the species, or 0.0 if the index is invalid.
+     */
+    double NonIdealMHDeffect::GetSpeciesHallConductivityByIndex(const std::size_t index) const
+    {
+        // Check if the index is out of bounds
+        if (index >= ptr_species_manager_->total_number_of_species_) return 0.0;
+
+        // Check if the Hall conductivity data is empty
+        if (hall_conductivity_.species_.empty()) return 0.0;
+
+        // Return the Hall conductivity of the specified species
+        return hall_conductivity_.species_[index];
+    }
+
+    /**
+     * @brief Get the Pedersen conductivity of a species by its name.
+     * 
+     * This function retrieves the Pedersen conductivity of a species using its name.
+     * If the species is not found or the index is out of range, it returns 0.0.
+     * 
+     * @param species_name The name of the species.
+     * @return The Pedersen conductivity of the species, or 0.0 if the species is not found.
+     */
+    double NonIdealMHDeffect::GetSpeciesPedersenConductivityByName(const std::string& species_name) const
+    {
+        // Check if the Pedersen conductivity data is empty
+        if (pedersen_conductivity_.species_.empty()) return 0.0;
+
+        // Find the index of the species by its name
+        std::size_t index = ptr_species_manager_->FindSpeciesIndex(species_name);
+
+        // Check if the index is out of bounds
+        if (index >= ptr_species_manager_->total_number_of_species_) return 0.0;
+
+        // Return the Pedersen conductivity of the specified species
+        return pedersen_conductivity_.species_[index];
+    }
+
+    /**
+     * @brief Get the Pedersen conductivity of a species by its index.
+     * 
+     * This function retrieves the Pedersen conductivity of a species using its index.
+     * If the index is out of range or the Pedersen conductivity data is empty, it returns 0.0.
+     * 
+     * @param index The index of the species.
+     * @return The Pedersen conductivity of the species, or 0.0 if the index is invalid.
+     */
+    double NonIdealMHDeffect::GetSpeciesPedersenConductivityByIndex(const std::size_t index) const
+    {
+        // Check if the index is out of bounds
+        if (index >= ptr_species_manager_->total_number_of_species_) return 0.0;
+
+        // Check if the Pedersen conductivity data is empty
+        if (pedersen_conductivity_.species_.empty()) return 0.0;
+
+        // Return the Pedersen conductivity of the specified species
+        return pedersen_conductivity_.species_[index];
     }
 }

@@ -129,6 +129,48 @@ namespace nicole
         }
 
         /**
+         * @brief Get the Ohmic conductivity of a species by its name.
+         * @param species_name The name of the species.
+         * @return The Ohmic conductivity of the species, or 0.0 if the species is not found.
+         */
+        double GetSpeciesOhmicConductivityByName(const std::string& species_name) const;
+
+        /**
+         * @brief Get the Ohmic conductivity of a species by its index.
+         * @param index The index of the species.
+         * @return The Ohmic conductivity of the species, or 0.0 if the index is invalid.
+         */
+        double GetSpeciesOhmicConductivityByIndex(const std::size_t index) const;
+
+        /**
+         * @brief Get the Hall conductivity of a species by its name.
+         * @param species_name The name of the species.
+         * @return The Hall conductivity of the species, or 0.0 if the species is not found.
+         */
+        double GetSpeciesHallConductivityByName(const std::string& species_name) const;
+
+        /**
+         * @brief Get the Hall conductivity of a species by its index.
+         * @param index The index of the species.
+         * @return The Hall conductivity of the species, or 0.0 if the index is invalid.
+         */
+        double GetSpeciesHallConductivityByIndex(const std::size_t index) const;
+
+        /**
+         * @brief Get the Pedersen conductivity of a species by its name.
+         * @param species_name The name of the species.
+         * @return The Pedersen conductivity of the species, or 0.0 if the species is not found.
+         */
+        double GetSpeciesPedersenConductivityByName(const std::string& species_name) const;
+
+        /**
+         * @brief Get the Pedersen conductivity of a species by its index.
+         * @param index The index of the species.
+         * @return The Pedersen conductivity of the species, or 0.0 if the index is invalid.
+         */
+        double GetSpeciesPedersenConductivityByIndex(const std::size_t index) const;
+
+        /**
          * @brief Retrieves the resistivity values.
          * 
          * @param ohmic_resistivity The computed Ohmic resistivity.
