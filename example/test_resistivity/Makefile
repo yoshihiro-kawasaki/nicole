@@ -7,6 +7,7 @@ ELEMENT_DIR := elements
 SPECIES_DIR := species
 REACTION_DIR := reactions
 SIMULATOR_DIR := reaction_simulator
+SHIELDING_DIR := shielding
 RESISTIVITY_DIR := mhd_resistivity
 ODEPACK_DIR := odepack_cpp
 
@@ -24,6 +25,7 @@ SRCS := $(wildcard *.cpp) \
         $(wildcard $(SRC_DIR)/$(SPECIES_DIR)/*.cpp) \
         $(wildcard $(SRC_DIR)/$(REACTION_DIR)/*.cpp) \
         $(wildcard $(SRC_DIR)/$(SIMULATOR_DIR)/*.cpp) \
+        $(wildcard $(SRC_DIR)/$(SHIELDING_DIR)/*.cpp) \
         $(wildcard $(SRC_DIR)/$(RESISTIVITY_DIR)/*.cpp) \
         $(wildcard $(SRC_DIR)/$(ODEPACK_DIR)/*.cpp)
 
@@ -32,8 +34,13 @@ OBJS := $(SRCS:$(SRC_DIR)/%.cpp=$(OUT_DIR)/%.o)
 
 # Define the compiler
 CPP = g++
+# CPP = clang++
+
 # Define compilation flags
 CFLAGS = -g -c -O3 -std=c++17
+
+# Define linking flags
+LFLAGS = -O3 -std=c++17
 
 # Declare all and clean as phony targets
 .PHONY: all clean
@@ -43,12 +50,12 @@ all: $(TARGET)
 
 # Linking rule for creating the executable from object files
 $(TARGET): $(OBJS)
-	$(CPP) -o $@ $^
+	$(CPP) $(LFLAGS) -o $@ $^
 
 # Rule for compiling source files into object files
 $(OUT_DIR)/%.o: $(SRC_DIR)/%.cpp
-	@mkdir -p $(dir $@)  # Create necessary subdirectories in build directory
-	$(CPP) $(CFLAGS) -o $@ -c $<
+	@mkdir -p $(dir $@)
+	$(CPP) $(CFLAGS) -o $@ $<
 
 # Clean up the build directory and executable
 clean:

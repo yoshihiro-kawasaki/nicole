@@ -4,9 +4,6 @@
 
 #include "../../nicole_src/nicole.hpp"
 
-void TestRun();
-void TestResistivity();
-
 double FreeFalltime(const double rhog) 
 {
     return std::sqrt(3.0 * M_PI / (32.0 * constants::kGravitationalConstant * rhog));
@@ -25,9 +22,9 @@ double IonizationRate(const double rhog, const double T)
 {
     const double SigmaCR = 96.0;
     const double Sigma = std::sqrt(constants::kBoltzmannConstant * T * rhog / (M_PI * constants::kGravitationalConstant * constants::kGasMolecularMass));
-    const double zetaCR0 = 1.3e-17;
+    const double zetaCR0 = 1.0e-17;
     const double zetaCR = zetaCR0 * std::exp(-Sigma / SigmaCR);
-    const double zetaRA = 1.1e-22;
+    const double zetaRA = 7.3e-19;
     return zetaCR + zetaRA;
 }
 
@@ -95,14 +92,14 @@ int main()
     nicole::NonIdealMHDeffect non_ideal_mhd_effect(&species_manager, &environment_parameters);
 
     // output fileの設定
-    const std::string output_file = "test_resistivity.txt";
+    const std::string output_file = "test_resistivity2.txt";
     std::ofstream file(output_file, std::ios::out | std::ios::trunc);
     if (!file.is_open()) {
         return 0;
     }
 
     // ファイルの１行目にラベル(時間、化学種)の記述
-    const std::size_t number_of_species = species_manager.GetNumberOfTotalSpecies();
+    const std::size_t number_of_species = species_manager.GetTotalNumberOfSpecies();
     file << std::setw(14) << "ng" << " "
          << std::setw(14) << "T"  << " "
          << std::setw(14) << "B"  << " ";

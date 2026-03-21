@@ -10,6 +10,7 @@ enthalpy_file                 : ../../chemical_data/enthalpy_of_formation.dat
 
 # dust reaction
 is_dust                       : true
+is_dust_collision             : false
 is_dust_surface_reaction      : false
 is_chemical_desorption        : false
 is_three_phase_reaction       : false

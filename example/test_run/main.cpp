@@ -79,7 +79,7 @@ int main()
     reaction_simulator.CheckReactionRateCoefficient(check_rate_file);
 
     // 化学種の存在量を格納する配列の初期化
-    const std::size_t number_of_species = species_manager.GetNumberOfTotalSpecies();
+    const std::size_t number_of_species = species_manager.GetTotalNumberOfSpecies();
     double species_abundances[number_of_species];
     reaction_simulator.SetInitialSpeciesAbundances(species_abundances);
 
@@ -121,7 +121,8 @@ int main()
 
     // 積分の実行
     for (int i = 1; i <= nstep; ++i) {
-        const double dt = tout - t;
+        // const double dt = tout - t;
+        // bool success = reaction_simulator.Integrate(t, tout, species_abundances, file);
         bool success = reaction_simulator.Integrate(t, tout, species_abundances, file);
         // std::cout << std::scientific << (dt/constants::kSolarYear) << " " << (t/constants::kSolarYear) << " " << (tout/constants::kSolarYear) << std::endl;
         tout *= tstep;
