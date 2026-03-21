@@ -26,4 +26,24 @@
 // Computes non-ideal MHD resistivity
 #include "mhd_resistivity/non_ideal_mhd_effect.hpp"
 
+// namespace nicole {
+
+//     class Nicole
+//     {
+//     public:
+//         Nicole(InputConfig& input);
+//         Nicole(InputConfig& input, const std::vector<std::string>& user_gas_species_list);
+
+//     private:
+
+//         ElementManager element_manager_;
+//         SpeciesManager species_manager_;
+//         ReactionManager reaction_manager_;
+//         ReactionSimulator reaction_simulator_;
+//         NonIdealMHDeffect non_ideal_mhd_effect_;
+
+//         bool is_check_;
+//     };
+// }
+
 #endif /* NICOLE_HPP */

@@ -10,6 +10,7 @@
  * @date 2025-02-11
  * @author Y. Kawasaki
  */
+
 #ifndef NICOLE_DEFS_HPP
 #define NICOLE_DEFS_HPP
 
@@ -90,6 +91,7 @@ namespace nicole
      */
     struct EnvironmentParameters {
         double gas_number_density;          // gas (hydrogen nuclei) number density [cm^-3]
+        double gas_mass_density;
         double gas_temperature;             // gas temperature [K]
         double cosmic_ray_ionization_rate;  // Cosmic ray ionization rate [s^-1]
         double x_rays_ionization_rate;      // X-ray ionization rate [s^-1]
@@ -170,7 +172,7 @@ namespace nicole
     constexpr 
 #else                       // C++11 uses inline
     inline 
-    #endif
+#endif
     T CUB(T x) {
         return x * x * x;
     }
@@ -187,7 +189,7 @@ namespace nicole
     constexpr 
 #else                       // C++11 uses inline
     inline 
-    #endif
+#endif
     T SIGN(T x) {
         return (x >= static_cast<T>(0) ? static_cast<T>(1) : static_cast<T>(-1));
     }

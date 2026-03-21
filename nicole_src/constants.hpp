@@ -17,9 +17,8 @@
 #ifndef CONSTANTS_HPP
 #define CONSTANTS_HPP
 
-
-#define _USE_MATH_DEFINES
 #include <cmath>
+#define _USE_MATH_DEFINES
 
 namespace constants 
 {
