@@ -45,7 +45,12 @@ namespace odepack_cpp
  * @fn SIGN
 */
 template <typename T>
-constexpr T SIGN(const T x) {
+#if __cplusplus >= 201402L
+constexpr
+#else
+inline
+#endif
+T SIGN(const T x) {
     return (x >= static_cast<T>(0) ? static_cast<T>(1) : static_cast<T>(-1));
 }
 

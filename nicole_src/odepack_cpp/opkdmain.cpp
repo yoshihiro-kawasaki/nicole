@@ -635,9 +635,9 @@ LABEL_800:
 
 
 void Odepack::DLSODES(ODEPACK_FUNCTION f, const int neq, double *y, double &t, const double tout, 
-            const int itol, double *rtol, double *atol, const int itask, int &istate, 
-            const int iopt, double *rwork, const int lrw, int *iwork, const int liw, 
-            ODEPACK_JACOBIAN2 jac, const int mf, void *user_data)
+    const int itol, double *rtol, double *atol, const int itask, int &istate, 
+    const int iopt, double *rwork, const int lrw, int *iwork, const int liw, 
+    ODEPACK_JACOBIAN2 jac, const int mf, void *user_data)
 {
 std::string msg;
     int i, j, i1, i2, iflag, imax, imul, imxer, ipflag, ipgo, irem,
