@@ -57,6 +57,8 @@ namespace nicole
             std::shared_ptr<DustSurfaceSpecies> corresponding_dust_surface_species
         );
 
+        ~DustMantleSpecies() { }
+
         /**
          * @brief Get the corresponding gas-phase species.
          * 

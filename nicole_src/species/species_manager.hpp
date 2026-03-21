@@ -117,7 +117,7 @@ namespace nicole
          * @brief Get the total number of species managed by the SpeciesManager.
          * @return The total number of species.
          */
-        std::size_t GetNumberOfTotalSpecies() const { return number_of_total_species_; }
+        std::size_t GetTotalNumberOfSpecies() const { return total_number_of_species_; }
 
         // Find functions: These functions search for species by name or specific properties.
 
@@ -279,7 +279,7 @@ namespace nicole
         DustSpeciesModelParameters dust_species_model_parameters_;
 
         // Number of total species and specific categories of species
-        std::size_t number_of_total_species_;
+        std::size_t total_number_of_species_;
         std::size_t number_of_gas_species_;
         std::size_t number_of_dust_surface_species_;
         std::size_t number_of_dust_mantle_species_;
@@ -290,6 +290,7 @@ namespace nicole
         std::size_t index_H_;
         std::size_t index_H2_;
         std::size_t index_He_;
+        std::size_t index_CO_;
         std::size_t index_sH_;
         std::size_t index_sH2_;
         std::size_t index_mH_;

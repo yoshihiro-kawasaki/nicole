@@ -53,6 +53,8 @@ namespace nicole
             ElementManager* ptr_element_manager
         );
 
+        ~GasSpecies() { }
+
         /**
          * @brief Get the corresponding dust surface species.
          * @return Shared pointer to the corresponding DustSurfaceSpecies.

@@ -76,6 +76,8 @@ namespace nicole
             double binding_energy_on_silicate
         );
 
+        ~DustLayerSpeciesBase() { }
+
         // Getters for the vibration frequency and diffusion barrier on H2O ice and silicate
         inline double GetVibrationFrequencyOnH2Oice() const { return vibration_frequency_on_H2O_ice_; }
         inline double GetVibrationFrequencyOnSilicate() const { return vibration_frequency_on_silicate_; }

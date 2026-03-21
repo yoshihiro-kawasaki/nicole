@@ -229,6 +229,8 @@ namespace nicole
             DustSpeciesModelParameters* ptr_dust_model_
         );
 
+        ~DustSpecies() { }
+
         /**
          * @brief Getter for the dust radius.
          * @return The radius of the dust species.
@@ -265,7 +267,6 @@ namespace nicole
 
         // Disable mass calculation for dust species
         void CalculateMass() = delete;
-
     };
 }
 

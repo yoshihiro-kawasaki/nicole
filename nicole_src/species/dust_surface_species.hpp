@@ -63,6 +63,8 @@ namespace nicole
             double binding_energy_on_silicate
         );
 
+        ~DustSurfaceSpecies() { }
+
         // Getter functions for corresponding gas species and dust mantle species
 
         /**
@@ -98,7 +100,6 @@ namespace nicole
         inline void SetCorrespondingDustMantleSpecies(const std::shared_ptr<DustMantleSpecies>& dust_mantle_species) {
             corresponding_dust_mantle_species_ = dust_mantle_species;
         }
-        
     };
 }
 

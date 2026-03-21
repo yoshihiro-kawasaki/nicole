@@ -100,6 +100,8 @@ namespace nicole
         type_(type)
     { }
 
+    Species::~Species() { }
+
     /**
      * @brief Display species properties.
      */

@@ -59,7 +59,7 @@ namespace nicole
         number_of_dust_surface_species_ = dust_surface_species_list_.size();
         number_of_dust_mantle_species_ = dust_mantle_species_list_.size();
         number_of_dust_species_ = dust_species_list_.size();
-        number_of_total_species_ = species_list_.size();
+        total_number_of_species_ = species_list_.size();
     }
 
     /**
@@ -104,7 +104,7 @@ namespace nicole
         number_of_dust_surface_species_ = dust_surface_species_list_.size();
         number_of_dust_mantle_species_ = dust_mantle_species_list_.size();
         number_of_dust_species_ = dust_species_list_.size();
-        number_of_total_species_ = species_list_.size();
+        total_number_of_species_ = species_list_.size();
     }
 
     /**
@@ -194,7 +194,7 @@ namespace nicole
         std::cout << "number of dust surface species = " << number_of_dust_surface_species_ << std::endl;
         std::cout << "number of dust mantle species  = " << number_of_dust_mantle_species_ << std::endl;
         std::cout << "number of dust species         = " << number_of_dust_species_ << std::endl;
-        std::cout << "number of total species        = " << number_of_total_species_ << std::endl;
+        std::cout << "total number of species        = " << total_number_of_species_ << std::endl;
     }
 
     /**
@@ -1061,10 +1061,10 @@ namespace nicole
     void SpeciesManager::SetSpecialSpeciesIndex() 
     {
         // Set the total number of species from the species list
-        number_of_total_species_ = species_list_.size();
+        total_number_of_species_ = species_list_.size();
 
         // Initialize the indices for the special species to kNotFoundSpecies to signify that they are not yet assigned
-        index_electron_ = index_H_ = index_H2_ = index_He_ = kNotFoundSpecies;
+        index_electron_ = index_H_ = index_H2_ = index_He_ = index_CO_ = kNotFoundSpecies;
         index_sH_ = index_sH2_ = index_mH_ = index_mH2_ = index_sH2O_ = kNotFoundSpecies;
 
         // Create a map that associates species names with their corresponding index variable
@@ -1073,6 +1073,7 @@ namespace nicole
             {"H", &index_H_},
             {"H2", &index_H2_},
             {"He", &index_He_},
+            {"CO", &index_CO_},
             {"sH", &index_sH_},
             {"sH2", &index_sH2_},
             {"mH", &index_mH_},
@@ -1081,7 +1082,7 @@ namespace nicole
         };
 
         // Iterate through the species list and check for special species names
-        for (std::size_t ispe = 0; ispe < number_of_total_species_; ++ispe) {
+        for (std::size_t ispe = 0; ispe < total_number_of_species_; ++ispe) {
             const std::string& species_name = species_list_[ispe]->GetName();  // Get species name from the list
 
             // Search for the species name in the special species map

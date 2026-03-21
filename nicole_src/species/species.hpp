@@ -109,7 +109,7 @@ namespace nicole
             SpeciesType type
         );
 
-        virtual ~Species() = default;
+        virtual ~Species() = 0;
 
         // Get functions
         inline std::size_t GetIndex() const { return index_; }
