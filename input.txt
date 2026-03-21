@@ -1,0 +1,31 @@
+# chemical data files
+species_file                  : chemical_data/gas_species.dat
+binding_energy_file           : chemical_data/binding_energy.dat
+gas_reaction_file             : chemical_data/kida.uva.2014.dat
+dust_surface_reaction_file    : chemical_data/kida_surface_reaction.dat
+abundances_file               : chemical_data/abundances2.dat
+element_file                  : chemical_data/element.dat
+activation_energy_file        : chemical_data/surface_activation_energy.dat
+enthalpy_file                 : chemical_data/enthalpy_of_formation.dat
+
+# dust reaction
+is_dust                       : true
+is_dust_collision             : false
+is_dust_surface_reaction      : false
+is_chemical_desorption        : false
+is_three_phase_reaction       : false
+is_H2_desorption              : false
+
+# dust parameters
+number_of_dust_bins           : 1
+min_dust_charge_number        : -1
+max_dust_charge_number        : 1
+dust_internal_density         : 3.0    [g cm^-3]
+dust_minimum_size             : 1.0e-5 [cm]
+dust_maximum_size             : 1.0e-5 [cm]
+power_index                   : -3.5
+dust_to_gas_mass_ratio        : 1.0e-2
+
+# integration setting parameters
+reltol : 1.0e-4
+abstol : 1.0e-15
