@@ -160,8 +160,8 @@ namespace nicole
 
         // number of reactions
         std::array<std::size_t, reaction_type_id::kNumberOfTypeID> number_of_each_type_reactions_ = {0};
-        std::size_t number_of_total_reactions_;
-        std::size_t number_of_total_gas_phase_reactions_;
+        std::size_t total_number_of_reactions_;
+        std::size_t total_number_of_gas_phase_reactions_;
 
         // Start and end indices for each reaction type.
         std::array<std::size_t, reaction_type_id::kNumberOfTypeID> reaction_type_id_start_ = {0};
@@ -174,10 +174,13 @@ namespace nicole
         std::vector<std::vector<std::size_t> > reaction_index_list_involved_with_species_;
 
         // Flags
+        bool is_dust_collision_;
         bool is_dust_surface_reaction_;
         bool is_chemical_desorption_;
         bool is_H2_desorption_;
         bool is_three_phase_reaction_;
+        bool is_H2_self_shielding_;
+        bool is_CO_self_shielding_;
 
     };
 }

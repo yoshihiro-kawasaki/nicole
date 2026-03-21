@@ -29,10 +29,13 @@ namespace nicole
         SpeciesManager *ptr_species_manager, 
         InputConfig& input
     ) : ptr_species_manager_(ptr_species_manager),
+        is_dust_collision_(input.GetBool("is_dust_collision")),
         is_dust_surface_reaction_(input.GetBool("is_dust_surface_reaction")),
         is_chemical_desorption_(input.GetBool("is_chemical_desorption")),
         is_H2_desorption_(input.GetBool("is_H2_desorption")),
-        is_three_phase_reaction_(input.GetBool("is_three_phase_reaction"))
+        is_three_phase_reaction_(input.GetBool("is_three_phase_reaction")),
+        is_H2_self_shielding_(false),
+        is_CO_self_shielding_(false)
     {
         // Check if ptr_species_manager_ is nullptr
         if (ptr_species_manager_ == nullptr) {
@@ -46,7 +49,9 @@ namespace nicole
         // If dust species are present, generate reactions related to dust and charged particle collisions
         if (ptr_species_manager_->is_dust_species_) {
             GenerateReactionListForDustAndChargedParticleCollision();
-            GenerateReactionListForDustCollision();
+            if (is_dust_collision_) {
+                GenerateReactionListForDustCollision();
+            }
         }
 
         // If dust surface reactions are enabled, generate the corresponding reaction lists
@@ -75,7 +80,7 @@ namespace nicole
         }
 
         // Finalize the setup by calculating the total number of reactions and indices.
-        number_of_total_reactions_ = reaction_list_.size();
+        total_number_of_reactions_ = reaction_list_.size();
         CountNumberOfEachTypeReactions();
         SetReactionTypeIdStartAndEnd();
         SetReactionsInvolvedWithSpecies();
@@ -124,8 +129,8 @@ namespace nicole
 
         file.close();
 
-        std::cout << "number of gas phase species = " << number_of_total_gas_phase_reactions_ << std::endl;
-        std::cout << "number of total reactions   = " << number_of_total_reactions_ << std::endl;
+        std::cout << "number of gas phase species = " << total_number_of_gas_phase_reactions_ << std::endl;
+        std::cout << "number of total reactions   = " << total_number_of_reactions_ << std::endl;
     }
 
     /**
@@ -324,14 +329,14 @@ namespace nicole
 
         // Reorder the reaction list by reaction type ID and update internal data structures
         std::size_t index = 0;
-        number_of_total_gas_phase_reactions_ = 0;
+        total_number_of_gas_phase_reactions_ = 0;
         for (std::size_t itype = 0; itype < reaction_type_id::kNumberOfTypeID; ++itype) {
             for (const auto& reaction : local_gas_reaction_list) {
                 if (reaction->type_id_ == itype) {
                     index++;
                     reaction->index_ = index;
                     reaction_list_.emplace_back(reaction);
-                    number_of_total_gas_phase_reactions_++;
+                    total_number_of_gas_phase_reactions_++;
                 }
             }
         }
@@ -1254,7 +1259,7 @@ namespace nicole
                     // H3+ + Dust(x) -> H2 + H + Dust(x+1)
 
                     // Search for reactions where the charged particle interacts with electrons
-                    for (std::size_t ireac = 0; ireac < number_of_total_gas_phase_reactions_; ++ireac) {
+                    for (std::size_t ireac = 0; ireac < total_number_of_gas_phase_reactions_; ++ireac) {
 
                         const auto reaction = reaction_list_[ireac];
                         if (!reaction) continue;
@@ -2433,7 +2438,7 @@ namespace nicole
 
         // Iterate through the reaction list and set the start index for a new reaction type
         // Whenever the reaction type changes, also set the end index for the previous reaction type
-        for (std::size_t ireac = 1; ireac < number_of_total_reactions_; ++ireac) {
+        for (std::size_t ireac = 1; ireac < total_number_of_reactions_; ++ireac) {
             // When the reaction type changes from the previous one
             if (reaction_list_[ireac]->type_id_ != reaction_list_[ireac - 1]->type_id_) {
                 // Set the start index for the new reaction type
@@ -2444,8 +2449,8 @@ namespace nicole
         }
 
         // Set the end index for the last reaction type
-        std::size_t type_id_end = reaction_list_[number_of_total_reactions_ - 1]->type_id_;
-        reaction_type_id_end_[type_id_end] = number_of_total_reactions_ - 1;
+        std::size_t type_id_end = reaction_list_[total_number_of_reactions_ - 1]->type_id_;
+        reaction_type_id_end_[type_id_end] = total_number_of_reactions_ - 1;
 
         // for (std::size_t itype = 0; itype < reaction_type_id::kNumberOfTypeID; ++itype) {
         //     std::cout << "Reaction type no. " << std::setw(4) << itype << "   " 
@@ -2466,7 +2471,7 @@ namespace nicole
     void ReactionManager::CountNumberOfEachTypeReactions() 
     {
         // Iterate through all reactions in the reaction list
-        for(std::size_t ireac = 0; ireac < number_of_total_reactions_; ++ireac) {
+        for(std::size_t ireac = 0; ireac < total_number_of_reactions_; ++ireac) {
             // Get the type ID for the current reaction
             std::size_t itype = reaction_list_[ireac]->type_id_;
             
@@ -2484,10 +2489,10 @@ namespace nicole
     void ReactionManager::SetReactionsInvolvedWithSpecies() 
     {
         // Get the total number of species
-        std::size_t number_of_total_species = ptr_species_manager_->number_of_total_species_;
+        std::size_t number_of_total_species = ptr_species_manager_->total_number_of_species_;
         
         // Initialize a 2D array to hold the indices of reactions involving each species
-        std::vector<std::vector<std::size_t>> use_species_for_reactions(number_of_total_species, std::vector<std::size_t>(number_of_total_reactions_));
+        std::vector<std::vector<std::size_t>> use_species_for_reactions(number_of_total_species, std::vector<std::size_t>(total_number_of_reactions_));
         
         // Resize the array to store the number of reactions each species is involved in
         number_of_reactions_involved_with_species_.resize(number_of_total_species);
@@ -2499,7 +2504,7 @@ namespace nicole
             std::size_t count = 0;
 
             // Loop through all reactions and check if the species is involved in any of them
-            for (std::size_t ireac = 0; ireac < number_of_total_reactions_; ++ireac) {
+            for (std::size_t ireac = 0; ireac < total_number_of_reactions_; ++ireac) {
                 
                 const auto& reaction = reaction_list_[ireac];
                 std::size_t idx_r1 = reaction->reactant_indices_[0];
