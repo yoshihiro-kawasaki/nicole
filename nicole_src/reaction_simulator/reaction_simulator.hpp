@@ -10,6 +10,7 @@
 #include "../nicole_defs.hpp"
 #include "../species/species_manager.hpp"
 #include "../reactions/reaction_manager.hpp"
+#include "../shielding/self_shielding_factor.hpp"
 #include "../odepack_cpp/odepack.hpp"
 
 namespace nicole
