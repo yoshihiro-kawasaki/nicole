@@ -19,7 +19,7 @@ namespace nicole {
         );
 
         // Getter
-        std::shared_ptr<DustSurfaceSpecies> GetCorrespondingSurfeceSpecies() const {
+        std::shared_ptr<DustSurfaceSpecies> GetCorrespondingSurfaceSpecies() const {
             return corresponding_dust_surface_species_;
         }
         std::shared_ptr<DustMantleSpecies> GetCorrespondingMantleSpecies() const {
@@ -27,7 +27,7 @@ namespace nicole {
         }
 
         // Setter
-        void SetCorrespondingSurfeceSpecies(const std::shared_ptr<DustSurfaceSpecies>& dust_surface_species) {
+        void SetCorrespondingSurfaceSpecies(const std::shared_ptr<DustSurfaceSpecies>& dust_surface_species) {
             corresponding_dust_surface_species_ = dust_surface_species;
         }
         void SetCorrespondingMantleSpecies(const std::shared_ptr<DustMantleSpecies>& dust_mantle_species) {
