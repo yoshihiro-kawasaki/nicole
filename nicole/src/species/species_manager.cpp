@@ -1,7 +1,9 @@
+#include <algorithm>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <string>
+#include <unordered_map>
 
 #include "nicole/species/species_manager.hpp"
 #include "nicole/utils/string_utils.hpp"
@@ -115,7 +117,7 @@ namespace nicole {
 
 
     std::shared_ptr<Species> SpeciesManager::GetSpecies(const SpeciesID id) const {
-        if (id < 0 || id >= species_list_.size()) return nullptr;
+        if (id >= species_list_.size()) return nullptr;
         return species_list_[id];
     }
 
@@ -127,13 +129,13 @@ namespace nicole {
 
 
     int SpeciesManager::GetSpeciesCharge(const SpeciesID id) const {
-        if (id < 0 || id >= species_list_.size()) return 0;
+        if (id >= species_list_.size()) return 0;
         return species_list_[id]->GetCharge();
     }
 
     
     Real SpeciesManager::GetSpeciesMass(const SpeciesID id) const {
-        if (id < 0 || id >= species_list_.size()) return 0.0;
+        if (id >= species_list_.size()) return 0.0;
         return species_list_[id]->GetMass();
     }
 
@@ -143,7 +145,7 @@ namespace nicole {
         static const std::vector<std::size_t> default_composition(ptr_element_manager_->GetNumberOfElements());
 
         // Check if the index is valid and within the bounds of the species list
-        if (id < 0 || id >= species_list_.size()) return default_composition;
+        if (id >= species_list_.size()) return default_composition;
         
         // For dust species
         if (species_list_[id]->GetSpeciesType() == SpeciesType::Dust) return default_composition;
