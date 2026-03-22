@@ -61,6 +61,7 @@ namespace nicole {
         inline ElementManager* GetPtrElementManager() const { return ptr_element_manager_; }
 
         // Setter
+        inline void SetID(const SpeciesID id) { id_ = id; }
         inline void SetBindingEnergyOnH2Oice(const Real binding_energy_on_H2O_ice) {
             binding_energy_on_H2O_ice_ = binding_energy_on_H2O_ice;
         }
