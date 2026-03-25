@@ -8,8 +8,8 @@ namespace nicole {
     public:
         Reaction(
             ReactionID id,
-            const std::vector<std::size_t>& reactant_indices,
-            const std::vector<std::size_t>& product_indices,
+            const std::vector<SpeciesID>& reactant_ids,
+            const std::vector<SpeciesID>& product_ids,
             const std::vector<Real>& rate_parameters,
             std::size_t type_id
         );
@@ -25,8 +25,8 @@ namespace nicole {
 
     protected:
         ReactionID id_;
-        std::vector<std::size_t> reactant_indices_;
-        std::vector<std::size_t> product_indices_;
+        std::vector<SpeciesID> reactant_ids_;
+        std::vector<SpeciesID> product_ids_;
         std::vector<Real> rate_parameters_;
         std::size_t type_id_;
         Real branching_ratio_;

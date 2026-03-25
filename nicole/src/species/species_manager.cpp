@@ -257,7 +257,7 @@ namespace nicole {
     }
 
     
-    SpeciesID SpeciesManager::FindSpeciesIndex(const std::string& species_name) const {
+    SpeciesID SpeciesManager::FindSpeciesID(const std::string& species_name) const {
         auto it = std::find(species_name_list_.begin(), species_name_list_.end(), species_name);
         return (it != species_name_list_.end()) ? std::distance(species_name_list_.begin(), it) : kNotFoundSpecies;
     }

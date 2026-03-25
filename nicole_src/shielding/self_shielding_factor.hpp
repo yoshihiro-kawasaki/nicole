@@ -10,13 +10,12 @@
  *      https://ui.adsabs.harvard.edu/abs/1996A%26A...311..690L/abstract
  */
 
-#ifndef SELF_SHIELDING_DATA_HPP
-#define SELF_SHIELDING_DATA_HPP
+#ifndef SELF_SHIELDING_FACTOR_HPP_
+#define SELF_SHIELDING_FACTOR_HPP_
 
 #include "../nicole_defs.hpp"
 
-namespace nicole
-{
+namespace nicole {
     // Lee et al. (1996) - Shielding factors for H2 and CO
     // Table 10 and Table 11 from the reference paper
 

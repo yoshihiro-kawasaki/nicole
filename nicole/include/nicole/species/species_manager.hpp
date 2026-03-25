@@ -42,7 +42,7 @@ namespace nicole {
         std::shared_ptr<DustSurfaceSpecies> FindDustSurfaceSpeciesByName(const std::string& species_name);
         std::shared_ptr<DustMantleSpecies> FindDustMantleSpeciesByName(const std::string& species_name);
         std::shared_ptr<DustSpecies> FindDustSpeciesByBinNumberAndCharge(const std::size_t bin_number, const int charge) const;
-        SpeciesID FindSpeciesIndex(const std::string& species_name) const;
+        SpeciesID FindSpeciesID(const std::string& species_name) const;
 
         // Boolean functions
         bool IsChemicalSpeciesByName(const std::string& species_name) const;

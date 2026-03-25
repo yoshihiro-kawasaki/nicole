@@ -1,6 +1,10 @@
 #ifndef ELEMENT_MANAGER_HPP_
 #define ELEMENT_MANAGER_HPP_
 
+#include <cstddef>
+#include <memory>
+#include <string>
+
 #include "nicole/config/input_config.hpp"
 #include "nicole/element/element.hpp"
 #include "nicole/nicole_defs.hpp"

@@ -3,26 +3,12 @@
 
 // C++ standard headers
 #include <cmath>
-#include <memory>
 #include <string>
 #include <vector>
 
-// #include <iostream>
-// #include <string>
-// #include <fstream>
-// #include <iomanip>
-// #include <memory>
-// #include <array>
-// #include <unordered_set>
-// #include <algorithm>
-// #include <unordered_map>
-// #include <unordered_set>
-
 // Nicole code specific headers
-#include "constants.hpp"
-#include "types.hpp"
-// #include "utils/string_utils.hpp"
-// #include "utils/vector_utils.hpp"
+#include "nicole/constants.hpp"
+#include "nicole/types.hpp"
 
 namespace nicole {
     // Nicole code-specific constants
