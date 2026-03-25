@@ -10,8 +10,8 @@
 // Manages chemical species
 #include "nicole/species/species_manager.hpp"
 
-// // Manages chemical reactions
-// #include "reactions/reaction_manager.hpp"
+// Manages chemical reactions
+#include "nicole/reaction/reaction_manager.hpp"
 
 // // Runs chemical reaction simulations
 // #include "reaction_simulator/reaction_simulator.hpp"
