@@ -113,7 +113,7 @@ namespace nicole {
             y[i] = 1.0e-5; // initial_species_abundances_[i];
             ydot[i] = 0.0;
         }
-        SetInitialSpeciesAbundances(y);
+        SetInitialSpeciesAbundances(y.data());
         CalculateRateCoefficient();
         OrdinaryDifferentialEquation(n, 0.0, y.data(), ydot.data(), this);
 

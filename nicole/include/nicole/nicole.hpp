@@ -13,10 +13,10 @@
 // Manages chemical reactions
 #include "nicole/reaction/reaction_manager.hpp"
 
-// // Runs chemical reaction simulations
-// #include "reaction_simulator/reaction_simulator.hpp"
+// Runs chemical reaction simulations
+#include "nicole/simulator/reaction_simulator.hpp"
 
-// // Computes non-ideal MHD resistivity
-// #include "mhd_resistivity/non_ideal_mhd_effect.hpp"
+// Computes non-ideal MHD resistivity
+#include "nicole/resistivity/non_ideal_mhd_effect.hpp"
 
 #endif /* NICOLE_HPP */

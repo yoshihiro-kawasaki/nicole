@@ -315,6 +315,11 @@ namespace nicole {
             // Validate format: Expecting (name, charge, element composition)
             if (split_result.size() != number_of_elements + 2) {
                 std::cerr << "Warning: Incorrect format in line " << line_number << ": " << line << std::endl;
+                std::cout << split_result.size() << " " << number_of_elements << std::endl;
+                for (const auto item : split_result) {
+                    std::cout << "'" << item << "'" << " ";
+                }
+                std::cout << std::endl;
                 continue;
             }
 

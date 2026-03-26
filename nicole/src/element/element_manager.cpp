@@ -64,16 +64,11 @@ namespace nicole {
         while (std::getline(file, line)) {
             if (line.empty() || line[0] == '#' || line[0] == '!') continue;
 
-            std::string line;
-            while (std::getline(file, line)) {
-                if (line.empty() || line[0] == '#' || line[0] == '!') continue;
+            std::vector<std::string> split_line = string_utils::Split(line, ' ');
+            std::string element_name = split_line[0];
+            Real element_mass = std::stoi(split_line[1]);
 
-                std::vector<std::string> split_line = string_utils::Split(line, ' ');
-                std::string element_name = split_line[0];
-                Real element_mass = std::stoi(split_line[1]);
-
-                element_list_.push_back(std::make_shared<Element>(element_name, element_mass));
-            }
+            element_list_.push_back(std::make_shared<Element>(element_name, element_mass));
         }
 
         number_of_elements_ = element_list_.size();

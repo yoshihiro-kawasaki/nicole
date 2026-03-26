@@ -7,5 +7,5 @@ odepack_cppの取得（更新）
 
 ```bash
 ./build.sh
-g++ test.cpp -I ./nicole/include -L ./build -lnicole
+g++ -O3 test.cpp -I ./nicole/include -L ./build/nicole -lnicole -I ./odepack_cpp/include -L ./build/odepack_cpp -lodepack_cpp
 ```

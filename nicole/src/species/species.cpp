@@ -62,6 +62,8 @@ namespace nicole {
         ptr_element_manager_(nullptr)
     { }
 
+    Species::~Species() { }
+
 
     void Species::CalculateMass() {
         if (!ptr_element_manager_) {
