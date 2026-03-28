@@ -12,241 +12,67 @@ namespace nicole {
         SpeciesManager *ptr_species_manager, 
         ReactionManager*ptr_reaction_manager, 
         EnvironmentParameters *ptr_environment_parameters,
-        InputConfig& input
+        InputConfig& config
     ) : ptr_species_manager_(ptr_species_manager),
         ptr_reaction_manager_(ptr_reaction_manager),
         ptr_environment_parameters_(ptr_environment_parameters),
-        relative_tolerance_(input.GetReal("reltol")),
-        absolute_tolerance_(input.GetReal("abstol"))
+        relative_tolerance_(config.GetReal("reltol")),
+        absolute_tolerance_(config.GetReal("abstol"))
     {
-        // Check if pointers are valid
-        if (ptr_species_manager_ == nullptr) {
-            std::cerr << "Error: ptr_species_manager is nullptr" << std::endl;
-            throw std::runtime_error("SpeciesManager pointer is null");
-        }
-
-        if (ptr_reaction_manager_ == nullptr) {
-            std::cerr << "Error: ptr_reaction_manager is nullptr" << std::endl;
-            throw std::runtime_error("ReactionManager pointer is null");
-        }
-
-        if (ptr_environment_parameters_ == nullptr) {
-            std::cerr << "Error: ptr_environment_parameters is nullptr" << std::endl;
-            throw std::runtime_error("EnvironmentParameters pointer is null");
-        }
-
-        // Check if relative tolerance is valid
         if (relative_tolerance_ <= 0.0) {
-            std::cerr << "Error: relative tolerance <= 0.0" << std::endl;
-            throw std::runtime_error("relative tolerance <= 0.0");
+            std::cout << "Warning: relative tolerance <= 0.0, set relative tolerance=1e-4." << std::endl;
+            relative_tolerance_ = 1e-4;
         }
 
-        // Check if absolute tolerance is valid
         if (absolute_tolerance_ <= 0.0) {
-            std::cerr << "Error: absolute_tolerance <= 0.0" << std::endl;
-            throw std::runtime_error("absolute_tolerance <= 0.0");
+            std::cout << "Warning: absolute_tolerance <= 0.0, set absolute_tolerance=1e-15." << std::endl;
+            absolute_tolerance_ = 1e-15;
         }
 
-        // Read species abundances from the file specified in the input configuration
-        ReadAbundancesFile(input.GetString("abundances_file"));
+        ReadAbundancesFile(config.GetString("abundances_file"));
 
-        // Initialize the reaction rate coefficient array based on the number of reactions
         reaction_rate_coefficient_.resize(ptr_reaction_manager->total_number_of_reactions_);
 
         // Initialize LSODE/LSODES parameters
         Real threshold_specre = 0.15;
         bool is_sparce = IsSparseJacobian(threshold_specre);
-        lsode_parameters_.is_allocate_work_arrays = false;
-        lsodes_parameters_.is_allocate_work_arrays = false;
-        // Configure LSODE/LSODES solver based on sparsity of the Jacobian
         if (is_sparce) {
-            AllocateAndSetLsodesWorkArrays();
+            AllocateAndSetLsodesArrays();
             is_lsode_integrator_ = false;
             std::cout << "Using LSODES integrator (sparse Jacobian)" << std::endl;
         } else {
-            AllocateAndSetLsodeWorkArrays();
+            AllocateAndSetLsodeArrays();
             is_lsode_integrator_ = true;
             std::cout << "Using LSODE integrator" << std::endl;
         }
     }
 
-    /**
-     * @brief Destructor for the ReactionSimulator class.
-     * 
-     * Frees dynamically allocated memory for the LSODE and LSODES work arrays.
-     */
-    ReactionSimulator::~ReactionSimulator()
-    {
-        // Free LSODE work arrays if they have been allocated
-        if (lsode_parameters_.is_allocate_work_arrays) {
-            delete [] lsode_parameters_.atol;
-            delete [] lsode_parameters_.rtol;
-            delete [] lsode_parameters_.rwork;
-            delete [] lsode_parameters_.iwork;
-            lsode_parameters_.is_allocate_work_arrays = false;
-        }
 
-        // Free LSODES work arrays if they have been allocated
-        if (lsodes_parameters_.is_allocate_work_arrays) {
-            delete [] lsodes_parameters_.atol;
-            delete [] lsodes_parameters_.rtol;
-            delete [] lsodes_parameters_.rwork;
-            delete [] lsodes_parameters_.iwork;
-            lsodes_parameters_.is_allocate_work_arrays = false;
-        }
-    }
+    ReactionSimulator::~ReactionSimulator() { }
 
-    /**
-     * @brief Check the reaction rate coefficients and write results to file.
-     * 
-     * @param filename The name of the file to write the results to.
-     */
-    void ReactionSimulator::CheckReactionRateCoefficient(const std::string filename) {
-        std::ofstream file(filename, std::ios::out | std::ios::trunc);
-        if (!file.is_open()) {
-            return;
-        }
 
-        const int n = ptr_species_manager_->total_number_of_species_;
-        std::vector<Real> y(n), ydot(n);
-        for (int i = 0; i < n; ++i) {
-            y[i] = 1.0e-5; // initial_species_abundances_[i];
-            ydot[i] = 0.0;
-        }
-        SetInitialSpeciesAbundances(y.data());
-        CalculateRateCoefficient();
-        OrdinaryDifferentialEquation(n, 0.0, y.data(), ydot.data(), this);
-
-        // for (std::size_t i = 0; i < n; ++i) {
-        //     Real t = 0.0;
-        //     if (ydot[i] != 0.0) {
-        //         t = std::abs(y[i]/ydot[i]);
-        //     }
-        //     std::cout << std::scientific << y[i] << " " << ydot[i] << " " << (t/constants::kSolarYear) << std::endl;
-        // }
-
-        std::size_t number_of_total_reaction = reaction_rate_coefficient_.size();
-        file << std::scientific;
-        for (std::size_t ireac = 0; ireac < number_of_total_reaction; ++ireac) {
-            const auto& reaction = ptr_reaction_manager_->reaction_list_[ireac];
-            // if (reaction->type_id_ > reaction_type_id::kGasPhaseEnd) continue;
-            // int gas_formula = static_cast<int>(reaction->rate_parameters_[gas_phase_reaction_params::kFormulaID]);
-            // Real alpha = static_cast<Real>(reaction->rate_parameters_[gas_phase_reaction_params::kAlpha]);
-            // Real beta = static_cast<Real>(reaction->rate_parameters_[gas_phase_reaction_params::kBeta]);
-            // Real gamma = static_cast<Real>(reaction->rate_parameters_[gas_phase_reaction_params::kGamma]);
-            // file << reaction->type_id_ << " " << gas_formula << " " << reaction_rate_coefficient_[ireac] << " " << alpha << " " << beta << " " << gamma << std::endl;
-            file << reaction->type_id_ << " " << reaction_rate_coefficient_[ireac] << std::endl;
-            // if (ireac < 10) {
-            //     std::cout << "rate : " << std::scientific << ireac << " " << reaction_rate_coefficient_[ireac] << std::endl;
-            // }
-        }
-
-        // file << std::scientific;
-        // const std::size_t ireac_start = ptr_reaction_manager_->reaction_type_id_start_[reaction_type_id::kDustSurfaceToMantleSwapping];
-        // const std::size_t ireac_end = ptr_reaction_manager_->reaction_type_id_end_[reaction_type_id::kDustSurfaceToMantleSwapping];
-        // for (std::size_t ireac = ireac_start; ireac <= ireac_end; ++ireac) {
-        //     const auto& reaction = ptr_reaction_manager_->reaction_list_[ireac];
-        //     file << reaction->index_  << " " << reaction_rate_coefficient_[ireac] << std::endl;
-        // }
-
-        file.close();
-    }
-
-    /**
-     * @brief Set the initial abundances for each species.
-     * 
-     * This function initializes the species abundances based on the initial values and calculates the electron abundance
-     * based on the ionization equilibrium. It also sets the dust species abundances, ensuring charge neutrality for dust.
-     * 
-     * @param species_abundances Array of species abundances.
-     */
-    void ReactionSimulator::SetInitialSpeciesAbundances(Real* species_abundances)
-    {
-        std::size_t number_of_species = ptr_species_manager_->total_number_of_species_;
-
-        // Initialize species abundances with the initial values.
-        // See also ReadAbundancesFile.
-        for (std::size_t index = 0; index < number_of_species; ++index) {
-            species_abundances[index] = initial_species_abundances_[index];
-        }
-
-        // Calculate the electron abundance based on ionization equilibrium
-        Real electron_abundance = 0.0;
-        for (std::size_t index = 0; index < number_of_species; ++index) {
-            const auto& species = ptr_species_manager_->species_list_[index];
-            const int charge = species->GetCharge();
-
-            // Sum the charge contributions from all charged species to calculate the electron abundance
-            if (index != ptr_species_manager_->index_electron_ && charge != 0.0) {
-                electron_abundance += (charge * species_abundances[index]);
-            }
-        }
-
-        /// Set initial dust species abundances
-        if (ptr_species_manager_->dust_species_model_parameters_.IsSizeDistributionModel()) {
-            // If using a size distribution model, set the abundances for each dust size bin
-            for (std::size_t index = 0; index < number_of_species; ++index) {
-                const auto& species = std::dynamic_pointer_cast<DustSpecies>(ptr_species_manager_->species_list_[index]);
-                if (!species) continue;
-                const int charge = species->GetCharge();
-                const std::size_t bin_number = species->GetBinNumber();
-
-                // Set abundances for electrically neutral dust species
-                if (species->GetSpeciesType() == SpeciesType::Dust && charge == 0.0) {
-                    species_abundances[index] = ptr_species_manager_->dust_species_model_parameters_.GetDustAbundancesForBin(bin_number);
-                }
-            }
-        } else {
-            // If using a single size model, set the total dust abundance
-            for (std::size_t index = 0; index < number_of_species; ++index) {
-                const auto& species = ptr_species_manager_->species_list_[index];
-                const int charge = species->GetCharge();
-                if (species->GetSpeciesType() == SpeciesType::Dust && charge == 0.0) {
-                    species_abundances[index] = ptr_species_manager_->dust_species_model_parameters_.GetDustTotalAbundance();
-                }
-            }
-        }
-
-        // Set the electron abundance
-        species_abundances[ptr_species_manager_->index_electron_] = electron_abundance;
-    }
-
-    /**
-     * @brief Check the calculation result by evaluating total charge, dust number density, and other quantities.
-     * 
-     * This method checks if the species abundances lead to charge neutrality and calculates the total charge, 
-     * dust number density, and other properties. It also prints out error estimates for the dust number density.
-     * 
-     * @param species_abundances Array of species abundances to check.
-     */
-    void ReactionSimulator::CheckCalculationResult(const Real *species_abundances) const
-    {
+    void ReactionSimulator::CheckCalculationResult(const Real *species_abundances) const {
         const std::size_t number_of_total_species = ptr_species_manager_->total_number_of_species_;
         const Real gas_number_density = ptr_environment_parameters_->gas_number_density;
 
-        // Initialize variables.
         Real total_charge = 0.0;
         Real cation_density = 0.0;
         Real anion_density = 0.0;
         Real total_dust_number_density_result = 0.0;
         Real mean_dust_charge = 0.0;
 
-        // Loop over all species to compute charge and densities
+        // Compute charge
         for (std::size_t i = 0; i < number_of_total_species; ++i) {
             const auto& species = ptr_species_manager_->species_list_[i];
             Real charge = static_cast<Real>(species->GetCharge());
 
-            // Calculate the total charge
             total_charge += charge * species_abundances[i];
-
-            // Classify as cation or anion based on charge
             if (charge > 0.0) {
                 cation_density += charge * species_abundances[i];
             } else if (charge < 0.0) {
                 anion_density += charge * species_abundances[i];
             }
 
-            // If the species is dust, calculate dust number density and mean dust charge
             if (species->GetSpeciesType() == SpeciesType::Dust) {
                 total_dust_number_density_result += species_abundances[i];
                 mean_dust_charge += charge * species_abundances[i];
@@ -260,22 +86,16 @@ namespace nicole {
             mean_dust_charge /= total_dust_number_density_result;
         }
 
-        // Adjust the dust number density by gas number density
+        // Compute the error in dust number density
         total_dust_number_density_result *= gas_number_density;
         Real dust_number_density = ptr_species_manager_->dust_species_model_parameters_.GetDustTotalAbundance() * gas_number_density;
-        
-        // Compute the error in dust number density
         Real err_dust = std::abs((total_dust_number_density_result - dust_number_density) / dust_number_density);
 
-        // Real dust_number_density = ptr_species_manager_->dust_species_model_parameters_.GetDustTotalAbundance();
-        // Real err_dust = std::abs((total_dust_number_density_result - dust_number_density) / dust_number_density);
-
+        // Print the results of the calculation
         for (std::size_t index = 0; index < number_of_total_species; ++index) {
             std::cout << "x[" << std::setw(12) << ptr_species_manager_->GetSpeciesName(index) << "] = " 
                       << std::scientific << std::setw(15) << species_abundances[index] << std::endl;
         }
-
-        // Print the results of the calculation
         std::cout << "initial total dust number density = " << std::setw(15) << dust_number_density << std::endl;
         std::cout << "finish total dust number density  = " << std::setw(15) << total_dust_number_density_result << std::endl;
         std::cout << "error dust number density         = " << std::setw(15) << err_dust << std::endl;
@@ -283,54 +103,120 @@ namespace nicole {
         std::cout << "total charge                      = " << std::setw(15) << total_charge << std::endl;
         std::cout << "total cation number density       = " << std::setw(15) << cation_density << std::endl;
         std::cout << "total antion number density       = " << std::setw(15) << anion_density << std::endl;
-        std::cout << "electron number density           = " << std::setw(15) << species_abundances[ptr_species_manager_->index_electron_] << std::endl;
+        std::cout << "electron number density           = " << std::setw(15) << species_abundances[ptr_species_manager_->id_electron_] << std::endl;
     }
 
-    /**
-     * @brief Read the abundances of species from a file.
-     * 
-     * This function opens a file containing species abundances data, parses the data, and updates the initial 
-     * abundances of species in the `initial_species_abundances_` array. The file is expected to contain species names 
-     * along with their corresponding abundances. Lines starting with `#` or `!` are treated as comments and ignored.
-     * 
-     * @param filename The name of the file containing species abundances data.
-     */
-    void ReactionSimulator::ReadAbundancesFile(const std::string& filename)
-    {
-        // Open the file in read mode
+
+    void ReactionSimulator::CheckReactionRateCoefficient(const std::string filename) {
+        std::ofstream file(filename, std::ios::out | std::ios::trunc);
+        if (!file.is_open()) {
+            return;
+        }
+
+        const int n = ptr_species_manager_->total_number_of_species_;
+        std::vector<Real> y(n), ydot(n);
+        for (int i = 0; i < n; ++i) {
+            y[i] = 1.0e-5;
+            ydot[i] = 0.0;
+        }
+        SetInitialSpeciesAbundances(y.data());
+        CalculateRateCoefficient();
+        OrdinaryDifferentialEquation(n, 0.0, y.data(), ydot.data(), this);
+
+        std::size_t number_of_total_reaction = reaction_rate_coefficient_.size();
+        file << std::scientific;
+        for (std::size_t ireac = 0; ireac < number_of_total_reaction; ++ireac) {
+            const auto& reaction = ptr_reaction_manager_->reaction_list_[ireac];
+            file << reaction->type_id_ << " " << reaction_rate_coefficient_[ireac] << std::endl;
+        }
+
+        file.close();
+    }
+
+
+    void ReactionSimulator::SetInitialSpeciesAbundances(Real* species_abundances) {
+        std::size_t number_of_species = ptr_species_manager_->total_number_of_species_;
+
+        // Set initialize species abundances. See also ReadAbundancesFile.
+        for (std::size_t id = 0; id < number_of_species; ++id) {
+            species_abundances[id] = initial_species_abundances_[id];
+        }
+
+        // Calculate the electron abundance based on ionization equilibrium.
+        Real electron_abundance = 0.0;
+        for (std::size_t id = 0; id < number_of_species; ++id) {
+            const auto& species = ptr_species_manager_->species_list_[id];
+            const int charge = species->GetCharge();
+
+            // Sum the charge contributions from all charged species to calculate the electron abundance
+            if (id != ptr_species_manager_->id_electron_ && charge != 0.0) {
+                electron_abundance += (charge * species_abundances[id]);
+            }
+        }
+
+        // Set initial dust species abundances
+        if (ptr_species_manager_->dust_species_model_parameters_.IsSizeDistributionModel()) {
+            // If using a size distribution model, set the abundances for each dust size bin
+            for (std::size_t id = 0; id < number_of_species; ++id) {
+                const auto& species = std::dynamic_pointer_cast<DustSpecies>(ptr_species_manager_->species_list_[id]);
+                if (!species) continue;
+                const int charge = species->GetCharge();
+                const std::size_t bin_number = species->GetBinNumber();
+
+                // Set abundances for electrically neutral dust species
+                if (species->GetSpeciesType() == SpeciesType::Dust && charge == 0.0) {
+                    species_abundances[id] = ptr_species_manager_->dust_species_model_parameters_.GetDustAbundancesForBin(bin_number);
+                }
+            }
+        } else {
+            // If using a single size model, set the total dust abundance
+            for (std::size_t id = 0; id < number_of_species; ++id) {
+                const auto& species = ptr_species_manager_->species_list_[id];
+                const int charge = species->GetCharge();
+                if (species->GetSpeciesType() == SpeciesType::Dust && charge == 0.0) {
+                    species_abundances[id] = ptr_species_manager_->dust_species_model_parameters_.GetDustTotalAbundance();
+                }
+            }
+        }
+
+        // Set the electron abundance
+        species_abundances[ptr_species_manager_->id_electron_] = electron_abundance;
+
+        for (std::size_t id = 0; id < number_of_species; ++id) {
+            if (species_abundances[id] < kMinimumSpeciesAbundance) {
+                species_abundances[id] = kMinimumSpeciesAbundance;
+            }
+        }
+    }
+
+
+    void ReactionSimulator::ReadAbundancesFile(const std::string& filename) {
         std::ifstream file(filename, std::ios::in);
         if (!file.is_open()) {
             std::cerr << "Error: Could not open file " << filename << std::endl;
             return;
         }
 
-        // Resize the initial abundances vector.
         std::size_t number_of_species = ptr_species_manager_->total_number_of_species_;
         initial_species_abundances_.resize(number_of_species, 0.0);
 
-        // Read the file line by line
         std::string line;
         int line_number = 0;
         while (std::getline(file, line)) {
             line_number++;
 
-            // Skip empty lines or comment lines (starting with # or !)
+            // Skip empty lines or comment lines
             if (line.empty() || line[0] == '#' || line[0] == '!') continue;
 
-            // Split the line into tokens (species name and abundance)
             std::vector<std::string> split_result = string_utils::Split(line, ' ', true);
             
-            // The first token is the species name
             std::string species_name = split_result[0];
 
-            // Find the index of the species in the species manager
-            std::size_t index = ptr_species_manager_->FindSpeciesID(species_name);
-            // If the species is not found, skip this line
-            if (index == kNotFoundSpecies) continue;
+            std::size_t id = ptr_species_manager_->FindSpeciesID(species_name);
+            if (id == kNotFoundSpecies) continue;
 
-            // The third token is the abundance of the species
             try {
-                initial_species_abundances_[index] = std::stod(split_result[2]);
+                initial_species_abundances_[id] = std::stod(split_result[2]);
             } catch (const std::invalid_argument& e) {
                 std::cerr << "Error: Invalid abundance value for species " << species_name 
                         << " at line " << line_number << ": " << split_result[2] << std::endl;
@@ -340,6 +226,7 @@ namespace nicole {
             }
         }
     }
+
 
     /**
      * @brief Calculate the gas phase reaction rate coefficients for all relevant reactions.
@@ -355,8 +242,7 @@ namespace nicole {
      * https://ui.adsabs.harvard.edu/abs/2015ApJS..217...20W/abstract
      * https://ui.adsabs.harvard.edu/abs/2024A%26A...689A..63W/abstract
      */
-    void ReactionSimulator::CalculateGasPhaseReactionRateCoefficient()
-    {
+    void ReactionSimulator::CalculateGasPhaseReactionRateCoefficient() {
         const Real temperature = ptr_environment_parameters_->gas_temperature;
 
         // Arrays for storing reaction indices and distance from temperature limits.
@@ -375,7 +261,6 @@ namespace nicole {
         // Function pointer for reaction rate calculation
         CalculateGasReactionRateFunction calc_rate_func = nullptr;
 
-        // Loop through the relevant reactions
         for (std::size_t ireac = ireac_start; ireac <= ireac_end; ++ireac) {
             const auto& reaction = ptr_reaction_manager_->reaction_list_[ireac];
 
@@ -419,7 +304,6 @@ namespace nicole {
 
             // If no further reactions with the same ID, process the stored reactions
             if (gas_phase_id != gas_phase_id_next && j != 0) {
-
                 indice[j]  = ireac;
                 distmin[j] = temperature_lower_limit - temperature;
                 distmax[j] = temperature - temperature_upper_limit;
@@ -437,7 +321,6 @@ namespace nicole {
 
                 // Set the rate coefficient for the reaction closest to the limits
                 if (vector_utils::GetMaxValue(reaction_rate_coefficient_, indice, 0, j) < 1.0e-99) {
-
                     if (vector_utils::GetMinAbsValue(distmin) <  vector_utils::GetMinAbsValue(distmax)) {
                         std::size_t n = indice[vector_utils::GetMinAbsValueIndex(distmin)];
                         reaction_rate_coefficient_[n] 
@@ -454,7 +337,6 @@ namespace nicole {
                                 ptr_reaction_manager_->reaction_list_[n]->rate_parameters_[gas_phase_reaction_params::kTemperatureUpperLimit]
                             );
                     }
-
                 } // end if
 
                 // Reset and prepare for the next set of reactions
@@ -464,11 +346,10 @@ namespace nicole {
                     distmin[i] = 9999.0;
                     distmax[i] = 9999.0;
                 }
-
             } // end if
-
         } // end for ireac
     }
+
 
     /**
      * @brief Calculate the reaction rate coefficient using the Modified Arrhenius formula.
@@ -482,8 +363,7 @@ namespace nicole {
      * https://ui.adsabs.harvard.edu/abs/2015ApJS..217...20W/abstract
      * https://ui.adsabs.harvard.edu/abs/2024A%26A...689A..63W/abstract
      */
-    Real ReactionSimulator::CalculateGasPhaseModifiedArrhenius(const std::shared_ptr<Reaction> reaction, const Real temperature) 
-    {
+    Real ReactionSimulator::CalculateGasPhaseModifiedArrhenius(const std::shared_ptr<Reaction> reaction, const Real temperature) {
         Real alpha = reaction->rate_parameters_[gas_phase_reaction_params::kAlpha];
         Real beta  = reaction->rate_parameters_[gas_phase_reaction_params::kBeta];
         Real gamma = reaction->rate_parameters_[gas_phase_reaction_params::kGamma];
@@ -503,8 +383,7 @@ namespace nicole {
      * https://ui.adsabs.harvard.edu/abs/2024A%26A...689A..63W/abstract
      * https://kida.astrochem-tools.org/uploads/documents/ionpol_notice.pdf
      */
-    Real ReactionSimulator::CalculateGasPhaseIonpol1(const std::shared_ptr<Reaction> reaction, const Real temperature) 
-    {
+    Real ReactionSimulator::CalculateGasPhaseIonpol1(const std::shared_ptr<Reaction> reaction, const Real temperature) {
         Real alpha = reaction->rate_parameters_[gas_phase_reaction_params::kAlpha];
         Real beta  = reaction->rate_parameters_[gas_phase_reaction_params::kBeta];
         Real gamma = reaction->rate_parameters_[gas_phase_reaction_params::kGamma];
@@ -524,8 +403,7 @@ namespace nicole {
      * https://ui.adsabs.harvard.edu/abs/2024A%26A...689A..63W/abstract
      * https://kida.astrochem-tools.org/uploads/documents/ionpol_notice.pdf
      */
-    Real ReactionSimulator::CalculateGasPhaseIonpol2(const std::shared_ptr<Reaction> reaction, const Real temperature) 
-    {
+    Real ReactionSimulator::CalculateGasPhaseIonpol2(const std::shared_ptr<Reaction> reaction, const Real temperature) {
         Real alpha = reaction->rate_parameters_[gas_phase_reaction_params::kAlpha];
         Real beta  = reaction->rate_parameters_[gas_phase_reaction_params::kBeta];
         Real gamma = reaction->rate_parameters_[gas_phase_reaction_params::kGamma];
@@ -542,27 +420,17 @@ namespace nicole {
      *
      * @ref https://ui.adsabs.harvard.edu/abs/1987ApJ...320..803D/abstract
      */
-    void ReactionSimulator::CalculateDustAndChargedParticleCollisionRateCoefficient()
-    {
-        // If there are no reactions of this type, exit the function
+    void ReactionSimulator::CalculateDustAndChargedParticleCollisionRateCoefficient() {
         if (ptr_reaction_manager_->number_of_each_type_reactions_[reaction_type_id::kDustAndChargedGasParticleCollison] == 0) return;
 
-        // Retrieve environmental parameters (temperature) for the calculation
         const Real temperature = ptr_environment_parameters_->gas_temperature;
-
-        // Coefficients for thermal velocity and tau
         const Real thermal_velocity_coefficient = std::sqrt(8.0 * constants::kBoltzmannConstant * temperature / (M_PI));
         const Real tau_coefficient = constants::kBoltzmannConstant * temperature / (SQR(constants::kChargeUnit));
-
-        // Get the reaction indices for the "dust and charged gas particle collision" reactions
         const size_t ireac_start = ptr_reaction_manager_->reaction_type_id_start_[reaction_type_id::kDustAndChargedGasParticleCollison];
         const size_t ireac_end   = ptr_reaction_manager_->reaction_type_id_end_[reaction_type_id::kDustAndChargedGasParticleCollison];
 
-        // Loop through each reaction within the specified range
         for (std::size_t ireac = ireac_start; ireac <= ireac_end; ++ireac) {
             const auto& reaction = ptr_reaction_manager_->reaction_list_[ireac];
-
-            // Extract reaction parameters for gas particles and dust particles
             const Real gas_mass = reaction->rate_parameters_[dust_and_charged_particle_collison_params::kGasMass];
             const Real gas_charge = reaction->rate_parameters_[dust_and_charged_particle_collison_params::kGasCharge];
             const Real dust_size = reaction->rate_parameters_[dust_and_charged_particle_collison_params::kDustRadius];
@@ -570,13 +438,12 @@ namespace nicole {
             const Real dust_cross_section = reaction->rate_parameters_[dust_and_charged_particle_collison_params::kDustCrossSection];
             const Real sticking_probability = reaction->rate_parameters_[dust_and_charged_particle_collison_params::kStickingProbability];
 
-            // Compute derived parameters for the collision rate
+            // // Calculate the collision rate coefficient based on the charge interaction model
             Real thermal_velocity = thermal_velocity_coefficient / std::sqrt(gas_mass);
             Real tau = tau_coefficient * dust_size / SQR(gas_charge);
             Real nu = dust_charge / gas_charge;
             Real theta_nu = (nu > 0.0 ? nu / (1.0 + 1.0 / std::sqrt(nu)) : 0.0);
 
-            // Calculate the collision rate coefficient based on the charge interaction model
             if (nu == 0.0) {
                 reaction_rate_coefficient_[ireac] = sticking_probability * thermal_velocity * dust_cross_section
                     * (1.0 + std::sqrt(M_PI / (2.0 * tau)));
@@ -587,8 +454,9 @@ namespace nicole {
                 reaction_rate_coefficient_[ireac] = sticking_probability * thermal_velocity * dust_cross_section
                     * SQR((1.0 + 1.0 / std::sqrt(4.0 * tau + 3.0 * nu))) * std::exp(-theta_nu / tau);
             }
-        } // End of reaction loop
+        }
     }
+
 
     /**
      * @brief Calculates the collision rate between dust particles
@@ -599,26 +467,16 @@ namespace nicole {
      * @ref 
      * https://ui.adsabs.harvard.edu/abs/1990MNRAS.243..103U/abstract
      */
-    void ReactionSimulator::CalculateDustCollisionRateCoefficient()
-    {
-        // If there are no reactions of this type, exit the function
+    void ReactionSimulator::CalculateDustCollisionRateCoefficient() {
         if (ptr_reaction_manager_->number_of_each_type_reactions_[reaction_type_id::kDustCollision] == 0) return;
 
-        // Retrieve environmental parameters, specifically gas temperature
         const Real gas_temperature = ptr_environment_parameters_->gas_temperature;
-
-        // Coefficient for thermal velocity calculation
         const Real thermal_velocity_coef = std::sqrt(8.0 * constants::kBoltzmannConstant * gas_temperature / M_PI);
-
-        // Get the reaction indices for the "dust collision" reactions
         const std::size_t ireac_start = ptr_reaction_manager_->reaction_type_id_start_[reaction_type_id::kDustCollision];
         const std::size_t ireac_end = ptr_reaction_manager_->reaction_type_id_end_[reaction_type_id::kDustCollision];
 
-        // Loop through each reaction within the specified range
         for (std::size_t ireac = ireac_start; ireac <= ireac_end; ++ireac) {
             const auto& reaction = ptr_reaction_manager_->reaction_list_[ireac];
-
-            // Extract the parameters for the dust collision (radius, charge, mass of the dust particles)
             const Real dust_radius1 = reaction->rate_parameters_[dust_collision_params::kDustRadius1];
             const Real dust_radius2 = reaction->rate_parameters_[dust_collision_params::kDustRadius2];
             const Real dust_charge1 = reaction->rate_parameters_[dust_collision_params::kDustCharge1];
@@ -626,18 +484,15 @@ namespace nicole {
             const Real dust_mass1 = reaction->rate_parameters_[dust_collision_params::kDustMass1];
             const Real dust_mass2 = reaction->rate_parameters_[dust_collision_params::kDustMass2];
 
-            // Calculate the reduced mass for the collision
+            // // Calculate the collision rate coefficient based on the formula
             const Real reduced_mass = dust_mass1 * dust_mass2 / (dust_mass1 + dust_mass2);
-
-            // Calculate the thermal velocity using the reduced mass
             const Real thermal_velocity = thermal_velocity_coef / std::sqrt(reduced_mass);
-
-            // Calculate the collision rate coefficient based on the formula
             reaction_rate_coefficient_[ireac]
                 = M_PI * SQR(dust_radius1 + dust_radius2) * thermal_velocity 
                 * (1.0 - dust_charge1 * dust_charge2 / ((dust_radius1 + dust_radius2) * constants::kBoltzmannConstant * gas_temperature));
         }
     }
+
 
     /**
      * @brief Calculates the accretion rate coefficient of neutral gas particles on dust surfaces.
@@ -651,42 +506,28 @@ namespace nicole {
      * @ref
      * Chaabouni et al. 2012
      */
-    void ReactionSimulator::CalculateNeutralSpeciesAccretionOnDustSurfacesRateCoefficient()
-    {
-        // If there are no reactions of this type, exit the function
+    void ReactionSimulator::CalculateNeutralSpeciesAccretionOnDustSurfacesRateCoefficient() {
         if (ptr_reaction_manager_->number_of_each_type_reactions_[reaction_type_id::kAccretionGasParticleOnDustSurfaces] == 0) return;
 
-        // Retrieve environmental parameters (gas number density and temperature)
         const Real gas_number_density = ptr_environment_parameters_->gas_number_density;
         const Real temperature = ptr_environment_parameters_->gas_temperature;
-
-        // Coefficient for thermal velocity calculation
         const Real thermal_velocity_coefficient = std::sqrt(8.0 * constants::kBoltzmannConstant * temperature / M_PI);
-
-        // Total dust cross-section parameter
         const Real dust_total_cross_section = ptr_species_manager_->dust_species_model_parameters_.GetDustTotalCrossSectionPernH() * gas_number_density;
-
-        // Get the reaction indices for the "accretion of gas particles on dust surfaces" reactions
         const std::size_t ireac_start = ptr_reaction_manager_->reaction_type_id_start_[reaction_type_id::kAccretionGasParticleOnDustSurfaces];
         const std::size_t ireac_end = ptr_reaction_manager_->reaction_type_id_end_[reaction_type_id::kAccretionGasParticleOnDustSurfaces];
 
-        // Loop through each reaction within the specified range
         for (std::size_t ireac = ireac_start; ireac <= ireac_end; ++ireac) {
             const auto& reaction = ptr_reaction_manager_->reaction_list_[ireac];
-
-            // Extract the parameters for the gas species involved in the reaction
             const std::size_t idx_r1 = reaction->reactant_ids_[0];
             const Real gas_mass = ptr_species_manager_->GetSpeciesMass(idx_r1);
-
-            // Compute the thermal velocity for the gas species
             const Real thermal_velocity = thermal_velocity_coefficient / std::sqrt(gas_mass);
 
-            // Define sticking probability
+            // Sticking probability
             Real sticking_probability = 1.0;
             Real si_ice, si_bare;
 
             // Calculate sticking probability for H species (Chaabouni et al. 2012)
-            if (idx_r1 == ptr_species_manager_->index_H_) {
+            if (idx_r1 == ptr_species_manager_->id_H_) {
                 // Ice surface
                 si_ice = (1.0 + 2.5 * temperature / 52.0) / std::pow(1.0 + temperature / 52.0, 2.5);
                 // Silicate surface
@@ -695,7 +536,7 @@ namespace nicole {
                 sticking_probability = coverage_of_H2O_on_dust_surface_ * si_ice + coverage_of_silicate_on_dust_surface_ * si_bare;
             }
             // Calculate sticking probability for H2 species (Chaabouni et al. 2012)
-            else if (idx_r1 == ptr_species_manager_->index_H2_) {
+            else if (idx_r1 == ptr_species_manager_->id_H2_) {
                 // Ice surface
                 si_ice = (1.0 + 2.5 * temperature / 87.0) / std::pow(1.0 + temperature / 87.0, 2.5);
                 // Silicate surface
@@ -706,8 +547,9 @@ namespace nicole {
 
             // Calculate the reaction rate coefficient
             reaction_rate_coefficient_[ireac] = sticking_probability * thermal_velocity * dust_total_cross_section;
-        } // end for 
+        }
     }
+
 
     /**
      * @brief Calculates the thermal desorption rate coefficient on dust surfaces.
@@ -717,37 +559,30 @@ namespace nicole {
      * its binding energy on the dust surface. If the rate coefficient is below a certain threshold 
      * (`kMinimumRateCoefficient`), it is set to zero.
      */
-    void ReactionSimulator::CalculateThermalDesorptionOnDustSurfacesRateCoefficient()
-    {
+    void ReactionSimulator::CalculateThermalDesorptionOnDustSurfacesRateCoefficient() {
         // If there are no reactions of the type 'ThermalDesorptionOnDustSurfaces', return early
         if (ptr_reaction_manager_->number_of_each_type_reactions_[reaction_type_id::kThermalDesorptionOnDustSurfaces] == 0) return;
 
-        // Assume that gas temperature is equal to dust temperature
-        const Real dust_temperature = ptr_environment_parameters_->gas_temperature; // dust temperature
-        const Real invT = 1.0 / dust_temperature; // inverse of dust temperature for the rate equation
-
-        // Get the start and end indices for reactions of the type 'ThermalDesorptionOnDustSurfaces'
+        const Real dust_temperature = ptr_environment_parameters_->gas_temperature;
+        const Real invT = 1.0 / dust_temperature;
         const size_t ireac_start = ptr_reaction_manager_->reaction_type_id_start_[reaction_type_id::kThermalDesorptionOnDustSurfaces];
         const size_t ireac_end   = ptr_reaction_manager_->reaction_type_id_end_[reaction_type_id::kThermalDesorptionOnDustSurfaces];
 
-        // Iterate over all reactions of type 'ThermalDesorptionOnDustSurfaces'
         for (std::size_t ireac = ireac_start; ireac <= ireac_end; ++ireac) {
-            // Get the current reaction
             const auto& reaction = ptr_reaction_manager_->reaction_list_[ireac];
-            
-            // Retrieve the vibrational frequency and binding energy for thermal desorption
+
+            // Calculate the rate coefficient using the Arrhenius-like equation
             const Real vibrational_frequency = reaction->rate_parameters_[thermal_desorption_params::kVibrationFrequency];
             const Real binding_energy = reaction->rate_parameters_[thermal_desorption_params::kBindingEnergyOnH2Oice];
-            
-            // Calculate the rate coefficient using the Arrhenius-like equation
             reaction_rate_coefficient_[ireac] = vibrational_frequency * std::exp(-binding_energy * invT);
             
             // If the rate coefficient is lower than the minimum threshold, set it to zero
-            // if (reaction_rate_coefficient_[ireac] < kMinimumRateCoefficient) {
-            //     reaction_rate_coefficient_[ireac] = 0.0;
-            // }
+            if (reaction_rate_coefficient_[ireac] < kMinimumRateCoefficient) {
+                reaction_rate_coefficient_[ireac] = 0.0;
+            }
         }
     }
+
 
     /**
      * @brief Calculates the cosmic ray desorption rate coefficient on dust surfaces.
@@ -755,57 +590,54 @@ namespace nicole {
      * This function calculates the rate coefficient for cosmic ray desorption of species from 
      * dust surfaces. 
      */
-    void ReactionSimulator::CalculateCosmicRayDesorptionOnDustSurfacesRateCoefficient()
-    {
-        // If there are no reactions of the type 'CosmicRayDesorptionOnDustSurfaces', return early
+    void ReactionSimulator::CalculateCosmicRayDesorptionOnDustSurfacesRateCoefficient() {
         if (ptr_reaction_manager_->number_of_each_type_reactions_[reaction_type_id::kCosmicRayDesorptionOnDustSurfaces] == 0) return;
 
         // Constants for the calculation, assuming the dust temperature is 70K
         const Real invT = 1.0 / 70.0;
         const Real f70K = 3.16e-19;
 
-        // Get the start and end indices for reactions of the type 'CosmicRayDesorptionOnDustSurfaces'
         const size_t ireac_start = ptr_reaction_manager_->reaction_type_id_start_[reaction_type_id::kCosmicRayDesorptionOnDustSurfaces];
         const size_t ireac_end   = ptr_reaction_manager_->reaction_type_id_end_[reaction_type_id::kCosmicRayDesorptionOnDustSurfaces];
 
-        // Iterate over all reactions of type 'CosmicRayDesorptionOnDustSurfaces'
         for (std::size_t ireac = ireac_start; ireac <= ireac_end; ++ireac) {
-            // Get the current reaction
             const auto& reaction = ptr_reaction_manager_->reaction_list_[ireac];
             
-            // Retrieve the vibrational frequency and binding energy for cosmic ray desorption
+            // Calculate the rate coefficient based on the formula for cosmic ray desorption
             const Real vibrational_frequency = reaction->rate_parameters_[cosmic_ray_desorption_on_dusts_surfaces_params::kVibrationFrequency];
             const Real binding_energy_H2Oice = reaction->rate_parameters_[cosmic_ray_desorption_on_dusts_surfaces_params::kBindingEnergyOnH2Oice];
-            
-            // Calculate the rate coefficient based on the formula for cosmic ray desorption
             reaction_rate_coefficient_[ireac] = f70K * vibrational_frequency * std::exp(-binding_energy_H2Oice * invT);
         }
     }
 
+
     /**
      * @brief 
      */
-    void ReactionSimulator::CalculatePhotoDesorptionByExternalUVRateCoefficient()
-    {
+    void ReactionSimulator::CalculatePhotoDesorptionByExternalUVRateCoefficient() {
         if (ptr_reaction_manager_->number_of_each_type_reactions_[reaction_type_id::kPhotoDesorptionByExternalUV] == 0) return;
 
         const Real S_UV = 1.0;
         const Real F_UV = 1.0e8;
         const Real Ypd = 1.0e-4;
         const Real c = F_UV * S_UV * Ypd / (4.0 * kDustSurfaceSitesDensity);
+
         const size_t ireac_start = ptr_reaction_manager_->reaction_type_id_start_[reaction_type_id::kPhotoDesorptionByExternalUV];
         const size_t ireac_end   = ptr_reaction_manager_->reaction_type_id_end_[reaction_type_id::kPhotoDesorptionByExternalUV];
 
         for (std::size_t ireac = ireac_start; ireac <= ireac_end; ++ireac) {
             reaction_rate_coefficient_[ireac] = c * std::exp(-2.0 * kVisualExtinction);
-            // if (number_of_total_layers_ >= kNumberOfActiveSurfaceLayer) {
-            //     reaction_rate_coefficient_[ireac] *= (kNumberOfActiveSurfaceLayer / number_of_total_layers_);
-            // }
+            if (number_of_total_layers_ >= kNumberOfActiveSurfaceLayer) {
+                reaction_rate_coefficient_[ireac] *= (kNumberOfActiveSurfaceLayer / number_of_total_layers_);
+            }
         }
     }
 
-    void ReactionSimulator::CalculatePhotoDesorptionByCosmicRayGeneratedUVRateCoefficient()
-    {
+
+    /**
+     * @brief
+     */
+    void ReactionSimulator::CalculatePhotoDesorptionByCosmicRayGeneratedUVRateCoefficient() {
         if (ptr_reaction_manager_->number_of_each_type_reactions_[reaction_type_id::kPhotoDesorptionByCRGeneratedUV] == 0) return;
 
         const Real S_UV_CR = 1.0;
@@ -817,18 +649,20 @@ namespace nicole {
 
         for (std::size_t ireac = ireac_start; ireac <= ireac_end; ++ireac) {
             reaction_rate_coefficient_[ireac] = c;
-            // if (number_of_total_layers_ >= kNumberOfActiveSurfaceLayer) {
-            //     reaction_rate_coefficient_[ireac] *= (kNumberOfActiveSurfaceLayer / number_of_total_layers_);
-            // }
+            if (number_of_total_layers_ >= kNumberOfActiveSurfaceLayer) {
+                reaction_rate_coefficient_[ireac] *= (kNumberOfActiveSurfaceLayer / number_of_total_layers_);
+            }
         }
     }
 
-    void ReactionSimulator::CalculateDustSurfaceReactionRateCoefficient()
-    {
+
+    /**
+     * @brief
+     */
+    void ReactionSimulator::CalculateDustSurfaceReactionRateCoefficient() {
         if (ptr_reaction_manager_->number_of_each_type_reactions_[reaction_type_id::kDustSurfaceReaction] == 0) return;
 
         const Real temperature = ptr_environment_parameters_->gas_temperature;
-        // const Real dust_temperature = temperature;
         const Real invT = 1.0 / temperature;
         const Real gas_number_density = ptr_environment_parameters_->gas_number_density;
         const Real total_dust_abundances = ptr_species_manager_->dust_species_model_parameters_.GetDustTotalAbundance();
@@ -839,10 +673,7 @@ namespace nicole {
         const size_t ireac_end   = ptr_reaction_manager_->reaction_type_id_end_[reaction_type_id::kDustSurfaceReaction];
 
         for (std::size_t ireac = ireac_start; ireac <= ireac_end; ++ireac) {
-            
             const auto& reaction = ptr_reaction_manager_->reaction_list_[ireac];
-            // const std::size_t idx_r1 = reaction->reactant_ids_[0];
-            // const std::size_t idx_r2 = reaction->reactant_ids_[1];
             const Real vibrational_frequency1 = reaction->rate_parameters_[dust_surface_reaction_params::kVibrationFrequency1];
             const Real vibrational_frequency2 = reaction->rate_parameters_[dust_surface_reaction_params::kVibrationFrequency2];
             const Real diffusion_barrier1 = reaction->rate_parameters_[dust_surface_reaction_params::kDiffusionBarrier1];
@@ -870,8 +701,11 @@ namespace nicole {
         }
     }
 
-    void ReactionSimulator::CalculateDustMantleReactionRateCoefficient()
-    {
+
+    /**
+     * @brief
+     */
+    void ReactionSimulator::CalculateDustMantleReactionRateCoefficient() {
         if (ptr_reaction_manager_->number_of_each_type_reactions_[reaction_type_id::kDustMantleReaction] == 0) return;
 
         const Real temperature = ptr_environment_parameters_->gas_temperature;
@@ -885,10 +719,7 @@ namespace nicole {
         const size_t ireac_end   = ptr_reaction_manager_->reaction_type_id_end_[reaction_type_id::kDustMantleReaction];
 
         for (std::size_t ireac = ireac_start; ireac <= ireac_end; ++ireac) {
-
             const auto& reaction = ptr_reaction_manager_->reaction_list_[ireac];
-            // const std::size_t idx_r1 = reaction->reactant_ids_[0];
-            // const std::size_t idx_r2 = reaction->reactant_ids_[1];
             const Real vibrational_frequency1 = reaction->rate_parameters_[dust_mantle_reaction_params::kVibrationFrequency1];
             const Real vibrational_frequency2 = reaction->rate_parameters_[dust_mantle_reaction_params::kVibrationFrequency2];
             const Real diffusion_barrier1 = reaction->rate_parameters_[dust_mantle_reaction_params::kDiffusionBarrier1];
@@ -916,12 +747,10 @@ namespace nicole {
         }
     }
 
-    void ReactionSimulator:: CalculateRateCoefficient()
-    {
+    void ReactionSimulator:: CalculateRateCoefficient() {
         std::size_t ireac_start, ireac_end;
         const Real cosmic_ray_ionization_rate = ptr_environment_parameters_->cosmic_ray_ionization_rate;
         const Real x_rays_ionization_rate = ptr_environment_parameters_->x_rays_ionization_rate;
-        // const Real temperature = ptr_environment_parameters_->gas_temperature;
 
         // type1 Dissociation or ionization of species due to direct collision with cosmic-ray particles.
         ireac_start = ptr_reaction_manager_->reaction_type_id_start_[reaction_type_id::kGasPhase1];
@@ -933,15 +762,15 @@ namespace nicole {
         }
 
         // type3 Dissociation or ionization of neutral species by UV photons with a standard interstellar UV field.
-        // const Real visual_extinction  = ptr_environment_parameters_->visual_extinction;
-        // const Real scaling_factor_uv_field = ptr_environment_parameters_->scaling_factor_uv_field;
-        // ireac_start = ptr_reaction_manager_->reaction_type_id_start_[reaction_type_id::kGasPhase3];
-        // ireac_end = ptr_reaction_manager_->reaction_type_id_end_[reaction_type_id::kGasPhase3];
-        // for (std::size_t ireac = ireac_start; ireac <= ireac_end; ++ireac) {
-        //     const auto& reaction = ptr_reaction_manager_->reaction_list_[ireac];
-        //     reaction_rate_coefficient_[ireac] = reaction->rate_parameters_[0] 
-        //         * std::exp(-reaction->rate_parameters_[2] * visual_extinction) * scaling_factor_uv_field;
-        // }
+        const Real visual_extinction  = ptr_environment_parameters_->visual_extinction;
+        const Real scaling_factor_uv_field = ptr_environment_parameters_->scaling_factor_uv_field;
+        ireac_start = ptr_reaction_manager_->reaction_type_id_start_[reaction_type_id::kGasPhase3];
+        ireac_end = ptr_reaction_manager_->reaction_type_id_end_[reaction_type_id::kGasPhase3];
+        for (std::size_t ireac = ireac_start; ireac <= ireac_end; ++ireac) {
+            const auto& reaction = ptr_reaction_manager_->reaction_list_[ireac];
+            reaction_rate_coefficient_[ireac] = reaction->rate_parameters_[0] 
+                * std::exp(-reaction->rate_parameters_[2] * visual_extinction) * scaling_factor_uv_field;
+        }
 
         // type4-8 Bimolecular reactions includes all chemical reactions between two species.
         CalculateGasPhaseReactionRateCoefficient();
@@ -972,14 +801,14 @@ namespace nicole {
         }
     }
 
-    void ReactionSimulator::CalculateSpeciesAbundancesDependentRateCoefficient(const Real *species_abundances)
-    {
+
+    void ReactionSimulator::CalculateSpeciesAbundancesDependentRateCoefficient(const Real *species_abundances) {
         std::size_t ireac_start, ireac_end;
 
         // gas phase type2 Dissociation or ionization of species due to UV photons emitted following H2 excitation.
         const Real cosmic_ray_ionization_rate = ptr_environment_parameters_->cosmic_ray_ionization_rate;
         const Real x_rays_ionization_rate = ptr_environment_parameters_->x_rays_ionization_rate;
-        const Real x_H2 = species_abundances[ptr_species_manager_->index_H2_];
+        const Real x_H2 = species_abundances[ptr_species_manager_->id_H2_];
 
         ireac_start = ptr_reaction_manager_->reaction_type_id_start_[reaction_type_id::kGasPhase2];
         ireac_end = ptr_reaction_manager_->reaction_type_id_end_[reaction_type_id::kGasPhase2];
@@ -996,11 +825,11 @@ namespace nicole {
         const Real scaling_factor_uv_field = ptr_environment_parameters_->scaling_factor_uv_field;
 
         Real H2_column_density = 0.0, CO_column_density = 0.0;
-        if (ptr_species_manager_->index_H2_ != kNotFoundSpecies) {
-            H2_column_density = species_abundances[ptr_species_manager_->index_H2_];
+        if (ptr_species_manager_->id_H2_ != kNotFoundSpecies) {
+            H2_column_density = species_abundances[ptr_species_manager_->id_H2_];
         }
-        if (ptr_species_manager_->index_CO_ != kNotFoundSpecies) {
-            CO_column_density = species_abundances[ptr_species_manager_->index_CO_];
+        if (ptr_species_manager_->id_CO_ != kNotFoundSpecies) {
+            CO_column_density = species_abundances[ptr_species_manager_->id_CO_];
         }
 
         ireac_start = ptr_reaction_manager_->reaction_type_id_start_[reaction_type_id::kGasPhase3];
@@ -1012,7 +841,7 @@ namespace nicole {
                 * std::exp(-reaction->rate_parameters_[2] * visual_extinction) * scaling_factor_uv_field;
 
             // H2 self-shielding
-            if (ptr_reaction_manager_->is_H2_self_shielding_ && reaction->reactant_ids_[0] == ptr_species_manager_->index_H2_) {
+            if (ptr_reaction_manager_->is_H2_self_shielding_ && reaction->reactant_ids_[0] == ptr_species_manager_->id_H2_) {
                 Real thetaH2 = 1.0;
                 if (H2_column_density <= kH2ColumnDensity[kNumberOfH2ShieldingFactors-1]) {
                     // Linear extrapolation of the shielding factors
@@ -1033,7 +862,7 @@ namespace nicole {
             }
 
             // CO self-shielding
-            if (ptr_reaction_manager_->is_CO_self_shielding_ && reaction->reactant_ids_[0] == ptr_species_manager_->index_CO_) {
+            if (ptr_reaction_manager_->is_CO_self_shielding_ && reaction->reactant_ids_[0] == ptr_species_manager_->id_CO_) {
 
                 Real thetaCO = 1.0;
                 if (CO_column_density <= kCOColumnDensity[kNumberOfCOShieldingFactors-1]) {
@@ -1108,7 +937,7 @@ namespace nicole {
         number_of_total_layers_ = number_of_surface_layers_ + number_of_mantle_layers_;
 
         // ダスト表面のH2Oとsilicateの被覆率の計算
-        const Real x_sH2O = species_abundances[ptr_species_manager_->index_sH2O_];
+        const Real x_sH2O = species_abundances[ptr_species_manager_->id_sH2O_];
         coverage_of_H2O_on_dust_surface_ = x_sH2O * dsite;
         coverage_of_H2O_on_dust_surface_ = std::min(coverage_of_H2O_on_dust_surface_, 1.0);
         coverage_of_silicate_on_dust_surface_ = 1.0 - coverage_of_H2O_on_dust_surface_;
@@ -1136,8 +965,8 @@ namespace nicole {
         return;
     }
 
-    void ReactionSimulator::CalculateDustSurfaceAndMantleSwappingRateCoefficient(const Real *species_abundances)
-    {
+
+    void ReactionSimulator::CalculateDustSurfaceAndMantleSwappingRateCoefficient(const Real *species_abundances) {
         if (ptr_reaction_manager_->number_of_each_type_reactions_[reaction_type_id::kDustSurfaceToMantleSwapping] == 0) return;
 
         const Real temperature = ptr_environment_parameters_->gas_temperature;
@@ -1202,14 +1031,13 @@ namespace nicole {
             }
 
             reaction_rate_coefficient_[ireac] = r_gain + swap_surface_to_mantle;
-        } // end for
+        }
     }
 
-    bool ReactionSimulator::IsSparseJacobian(const Real threshold)
-    {
+
+    bool ReactionSimulator::IsSparseJacobian(const Real threshold) {
         const std::size_t number_of_species = ptr_species_manager_->total_number_of_species_;
         const std::size_t nn = number_of_species * number_of_species;
-        // Real y[number_of_species], ydot[number_of_species], jac[nn];
         Real *y = new Real[number_of_species];
         Real *ydot = new Real[number_of_species];
         Real *jac = new Real[nn];
@@ -1245,36 +1073,32 @@ namespace nicole {
         }
     }
 
-    void ReactionSimulator::AllocateAndSetLsodeWorkArrays()
-    {
+
+    void ReactionSimulator::AllocateAndSetLsodeArrays() {
         const std::size_t number_of_species = ptr_species_manager_->total_number_of_species_;
         lsode_parameters_.liw = 20 + number_of_species;
         lsode_parameters_.lrw = 22 + 9*number_of_species + number_of_species*number_of_species;
 
-        if (!lsode_parameters_.is_allocate_work_arrays) {
-            lsode_parameters_.rtol = new Real[number_of_species];
-            lsode_parameters_.atol = new Real[number_of_species];
-            lsode_parameters_.rwork = new Real[lsode_parameters_.lrw];
-            lsode_parameters_.iwork = new int[lsode_parameters_.liw];
-            lsode_parameters_.is_allocate_work_arrays = true;
+        lsode_parameters_.rtol.resize(number_of_species);
+        lsode_parameters_.atol.resize(number_of_species);
+        lsode_parameters_.rwork.resize(lsode_parameters_.lrw);
+        lsode_parameters_.iwork.resize(lsode_parameters_.liw);
+        lsode_parameters_.is_allocate_arrays = true;
 
-            for (std::size_t i = 0; i < number_of_species; ++i) {
-                lsode_parameters_.rtol[i] = relative_tolerance_;
-                lsode_parameters_.atol[i] = absolute_tolerance_;
-            }
+        for (std::size_t i = 0; i < number_of_species; ++i) {
+            lsode_parameters_.rtol[i] = relative_tolerance_;
+            lsode_parameters_.atol[i] = absolute_tolerance_;
         }
     }
 
-    void ReactionSimulator::AllocateAndSetLsodesWorkArrays()
-    {
+
+    void ReactionSimulator::AllocateAndSetLsodesArrays() {
         const std::size_t number_of_species = ptr_species_manager_->total_number_of_species_;
-        // Real y[number_of_species], ydot[number_of_species], pdj[number_of_species];
-        // int ian[number_of_species], jan[number_of_species];
-        Real *y = new Real[number_of_species];
-        Real *ydot = new Real[number_of_species];
-        Real *pdj = new Real[number_of_species];
-        int *ian = new int[number_of_species];
-        int *jan = new int[number_of_species];
+        std::vector<Real> y(number_of_species);
+        std::vector<Real> ydot(number_of_species);
+        std::vector<Real> pdj(number_of_species);
+        std::vector<int> ian(number_of_species);
+        std::vector<int> jan(number_of_species);
         Real t = 0.0;
         int max_nonzeros = 0;
 
@@ -1287,11 +1111,10 @@ namespace nicole {
         }
 
         CalculateRateCoefficient();
-        OrdinaryDifferentialEquation(number_of_species, t, y, ydot, this);
+        OrdinaryDifferentialEquation(number_of_species, t, y.data(), ydot.data(), this);
 
         for (std::size_t j = 1; j <= number_of_species; ++j) {
-
-            JacobianJth(number_of_species, t, y, j, ian, jan, pdj, this);
+            JacobianJth(number_of_species, t, y.data(), j, ian.data(), jan.data(), pdj.data(), this);
 
             int count_nonzeros = 0;
             for (std::size_t i = 0; i < number_of_species; ++i) {
@@ -1308,31 +1131,23 @@ namespace nicole {
         lsodes_parameters_.liw = 30;
         lsodes_parameters_.lrw = 20 + 3 * max_nonzeros * number_of_species + 16 * number_of_species;
 
-        if (!lsodes_parameters_.is_allocate_work_arrays) {
-            lsodes_parameters_.rtol = new Real[number_of_species];
-            lsodes_parameters_.atol = new Real[number_of_species];
-            lsodes_parameters_.rwork = new Real[lsodes_parameters_.lrw];
-            lsodes_parameters_.iwork = new int[lsodes_parameters_.liw];
-            lsodes_parameters_.is_allocate_work_arrays = true;
+        lsodes_parameters_.rtol.resize(number_of_species);
+        lsodes_parameters_.atol.resize(number_of_species);
+        lsodes_parameters_.rwork.resize(lsodes_parameters_.lrw);
+        lsodes_parameters_.iwork.resize(lsodes_parameters_.liw);
+        lsodes_parameters_.is_allocate_arrays = true;
 
-            for (std::size_t i = 0; i < number_of_species; ++i) {
-                lsodes_parameters_.rtol[i] = relative_tolerance_;
-                lsodes_parameters_.atol[i] = absolute_tolerance_;
-            }
+        for (std::size_t i = 0; i < number_of_species; ++i) {
+            lsodes_parameters_.rtol[i] = relative_tolerance_;
+            lsodes_parameters_.atol[i] = absolute_tolerance_;
         }
-
-        delete[] y;
-        delete[] ydot;
-        delete[] pdj;
-        delete[] ian;
-        delete[] jan;
 
         return;
     }
 
-    void ReactionSimulator::ResetLsodeWorkArrays()
-    {
-        if (!lsode_parameters_.is_allocate_work_arrays) return;
+
+    void ReactionSimulator::ResetLsodeWorkArrays() {
+        if (!lsode_parameters_.is_allocate_arrays) return;
 
         for (int i = 0; i < lsode_parameters_.liw; ++i) {
             lsode_parameters_.iwork[i] = 0;
@@ -1346,9 +1161,9 @@ namespace nicole {
         lsode_parameters_.iwork[5] = 3000;
     }
 
-    void ReactionSimulator::ResetLsodesWorkArrays()
-    {
-        if (!lsodes_parameters_.is_allocate_work_arrays) return;
+
+    void ReactionSimulator::ResetLsodesWorkArrays() {
+        if (!lsodes_parameters_.is_allocate_arrays) return;
 
         for (int i = 0; i < lsodes_parameters_.liw; ++i) {
             lsodes_parameters_.iwork[i] = 0;
@@ -1362,12 +1177,11 @@ namespace nicole {
         lsodes_parameters_.iwork[5] = 3000;
     }
 
-    bool ReactionSimulator::Integrate(Real &t, const Real tout, Real *species_abundance)
-    {
+
+    bool ReactionSimulator::Integrate(Real &t, const Real tout, Real *species_abundance) {
         const size_t number_of_species = ptr_species_manager_->total_number_of_species_;
 
         if (is_lsode_integrator_) {
-
             lsode_parameters_.itol = 2;
             lsode_parameters_.iopt = 1;
             lsode_parameters_.itask = 1;
@@ -1375,8 +1189,7 @@ namespace nicole {
             lsode_parameters_.istate = 1;
 
             for (std::size_t i = 0; i < number_of_species; ++i) {
-                lsode_parameters_.atol[i] = std::max(kOdepackMinimumAbsoluteTolerance, 
-                    absolute_tolerance_ * species_abundance[i]);
+                lsode_parameters_.atol[i] = std::max(kOdepackMinimumAbsoluteTolerance, absolute_tolerance_ * species_abundance[i]);
             }
 
             ResetLsodeWorkArrays();
@@ -1389,34 +1202,33 @@ namespace nicole {
                 t, 
                 tout, 
                 lsode_parameters_.itol,
-                lsode_parameters_.rtol, 
-                lsode_parameters_.atol, 
+                lsode_parameters_.rtol.data(), 
+                lsode_parameters_.atol.data(), 
                 lsode_parameters_.itask, 
                 lsode_parameters_.istate, 
                 lsode_parameters_.iopt, 
-                lsode_parameters_.rwork, 
+                lsode_parameters_.rwork.data(), 
                 lsode_parameters_.lrw, 
-                lsode_parameters_.iwork, 
+                lsode_parameters_.iwork.data(), 
                 lsode_parameters_.liw,
                 Jacobian, 
                 lsode_parameters_.mf, 
                 this
             );
 
-            // for (int i = 0; i < number_of_species; ++i) {
-            //     if (species_abundance[i] < kMinimumSpeciesAbundance) {
-            //         species_abundance[i] = kMinimumSpeciesAbundance;
-            //     }
-            // }
+            for (std::size_t i = 0; i < number_of_species; ++i) {
+                if (species_abundance[i] < kMinimumSpeciesAbundance) {
+                    species_abundance[i] = kMinimumSpeciesAbundance;
+                }
+            }
 
             if (lsode_parameters_.istate < 2) {
-                std::cerr << "istate = " << lsode_parameters_.istate << std::endl;
+                std::cerr << "Error: LSODE istate = " << lsode_parameters_.istate << std::endl;
                 return false;
             }
             return true;
 
         } else {
-
             lsodes_parameters_.itol = 2;
             lsodes_parameters_.iopt = 1;
             lsodes_parameters_.itask = 1;
@@ -1424,8 +1236,7 @@ namespace nicole {
             lsodes_parameters_.istate = 1;
 
             for (std::size_t i = 0; i < number_of_species; ++i) {
-                lsodes_parameters_.atol[i] = std::max(kOdepackMinimumAbsoluteTolerance, 
-                    absolute_tolerance_ * species_abundance[i]);
+                lsodes_parameters_.atol[i] = std::max(kOdepackMinimumAbsoluteTolerance, absolute_tolerance_ * species_abundance[i]);
             }
 
             ResetLsodesWorkArrays();
@@ -1438,36 +1249,36 @@ namespace nicole {
                 t, 
                 tout, 
                 lsodes_parameters_.itol,
-                lsodes_parameters_.rtol, 
-                lsodes_parameters_.atol, 
+                lsodes_parameters_.rtol.data(), 
+                lsodes_parameters_.atol.data(), 
                 lsodes_parameters_.itask, 
                 lsodes_parameters_.istate, 
                 lsodes_parameters_.iopt, 
-                lsodes_parameters_.rwork, 
+                lsodes_parameters_.rwork.data(), 
                 lsodes_parameters_.lrw, 
-                lsodes_parameters_.iwork, 
+                lsodes_parameters_.iwork.data(), 
                 lsodes_parameters_.liw,
                 JacobianJth, 
                 lsodes_parameters_.mf, 
                 this
             );
 
-            // for (int i = 0; i < number_of_species; ++i) {
-            //     if (species_abundance[i] < kMinimumSpeciesAbundance) {
-            //         species_abundance[i] = kMinimumSpeciesAbundance;
-            //     }
-            // }
+            for (std::size_t i = 0; i < number_of_species; ++i) {
+                if (species_abundance[i] < kMinimumSpeciesAbundance) {
+                    species_abundance[i] = kMinimumSpeciesAbundance;
+                }
+            }
 
             if (lsodes_parameters_.istate < 2) {
-                std::cerr << "istate = " << lsodes_parameters_.istate << std::endl;
+                std::cerr << "Error: DLSODES istate = " << lsodes_parameters_.istate << std::endl;
                 return false;
             }
             return true;
         }
     }
 
-    bool ReactionSimulator::Integrate(Real &t, const Real tout, Real *species_abundance, std::ofstream& file)
-    {
+
+    bool ReactionSimulator::Integrate(Real &t, const Real tout, Real *species_abundance, std::ofstream& file) {
         if (!file.is_open()) {
             return false;
         }
@@ -1475,7 +1286,6 @@ namespace nicole {
         const size_t number_of_species = ptr_species_manager_->total_number_of_species_;
 
         if (is_lsode_integrator_) {
-
             lsode_parameters_.itol = 2;
             lsode_parameters_.iopt = 1;
             lsode_parameters_.itask = 1;
@@ -1483,8 +1293,7 @@ namespace nicole {
             lsode_parameters_.istate = 1;
 
             for (std::size_t i = 0; i < number_of_species; ++i) {
-                lsode_parameters_.atol[i] = std::max(kOdepackMinimumAbsoluteTolerance, 
-                    absolute_tolerance_ * species_abundance[i]);
+                lsode_parameters_.atol[i] = std::max(kOdepackMinimumAbsoluteTolerance, absolute_tolerance_ * species_abundance[i]);
             }
 
             ResetLsodeWorkArrays();
@@ -1497,14 +1306,14 @@ namespace nicole {
                 t, 
                 tout, 
                 lsode_parameters_.itol,
-                lsode_parameters_.rtol, 
-                lsode_parameters_.atol, 
+                lsode_parameters_.rtol.data(), 
+                lsode_parameters_.atol.data(), 
                 lsode_parameters_.itask, 
                 lsode_parameters_.istate, 
                 lsode_parameters_.iopt, 
-                lsode_parameters_.rwork, 
+                lsode_parameters_.rwork.data(), 
                 lsode_parameters_.lrw, 
-                lsode_parameters_.iwork, 
+                lsode_parameters_.iwork.data(), 
                 lsode_parameters_.liw,
                 Jacobian, 
                 lsode_parameters_.mf, 
@@ -1518,13 +1327,12 @@ namespace nicole {
             file << std::endl;
 
             if (lsode_parameters_.istate < 0) {
-                std::cerr << "istate = " << lsode_parameters_.istate << std::endl;
+                std::cerr << "Error: DLSODE istate = " << lsode_parameters_.istate << std::endl;
                 return false;
             }
             return true;
 
         } else {
-
             lsodes_parameters_.itol = 2;
             lsodes_parameters_.iopt = 1;
             lsodes_parameters_.itask = 1;
@@ -1532,8 +1340,7 @@ namespace nicole {
             lsodes_parameters_.istate = 1;
 
             for (std::size_t i = 0; i < number_of_species; ++i) {
-                lsodes_parameters_.atol[i] = std::max(kOdepackMinimumAbsoluteTolerance, 
-                    absolute_tolerance_ * species_abundance[i]);
+                lsodes_parameters_.atol[i] = std::max(kOdepackMinimumAbsoluteTolerance, absolute_tolerance_ * species_abundance[i]);
             }
 
             ResetLsodesWorkArrays();
@@ -1546,14 +1353,14 @@ namespace nicole {
                 t, 
                 tout,
                 lsodes_parameters_.itol,
-                lsodes_parameters_.rtol, 
-                lsodes_parameters_.atol, 
+                lsodes_parameters_.rtol.data(), 
+                lsodes_parameters_.atol.data(), 
                 lsodes_parameters_.itask, 
                 lsodes_parameters_.istate, 
                 lsodes_parameters_.iopt, 
-                lsodes_parameters_.rwork, 
+                lsodes_parameters_.rwork.data(), 
                 lsodes_parameters_.lrw, 
-                lsodes_parameters_.iwork, 
+                lsodes_parameters_.iwork.data(), 
                 lsodes_parameters_.liw,
                 JacobianJth, 
                 lsodes_parameters_.mf, 
@@ -1562,25 +1369,23 @@ namespace nicole {
 
             file << std::scientific << std::setw(12) << t << " ";
             for (std::size_t i = 0; i < number_of_species; ++i) {
-                // if (species_abundance[i] < kMinimumSpeciesAbundance) {
-                //     species_abundance[i] = kMinimumSpeciesAbundance;
-                // }
+                if (species_abundance[i] < kMinimumSpeciesAbundance) {
+                    species_abundance[i] = kMinimumSpeciesAbundance;
+                }
                 file << std::setw(12) << species_abundance[i] << " ";
             }
             file << std::endl;
-            // std::cout << std::scientific << (t/constants::kSolarYear) << " " << number_of_surface_layers_ << " " << number_of_mantle_layers_ << std::endl;
 
             if (lsodes_parameters_.istate < 0) {
-                std::cerr << "istate = " << lsodes_parameters_.istate << std::endl;
+                std::cerr << "Error: DLSODES istate = " << lsodes_parameters_.istate << std::endl;
                 return false;
             }
             return true;
         }
     }
 
-    void ReactionSimulator::OrdinaryDifferentialEquation(int neq, Real t, Real *y, Real *ydot, void *user_data)
-    {
-        // 必要なポインタをuser_dataから取得
+
+    void ReactionSimulator::OrdinaryDifferentialEquation(int neq, Real t, Real *y, Real *ydot, void *user_data) {
         ReactionSimulator* ptr_recation_driver  = (ReactionSimulator*)(user_data);
         ReactionManager*   ptr_reaction_manager = ptr_recation_driver->ptr_reaction_manager_;
         SpeciesManager*    ptr_species_manager  = ptr_recation_driver->ptr_species_manager_;
@@ -1614,7 +1419,6 @@ namespace nicole {
 
             // 反応係数の取得
             const Real rate_coef = ptr_recation_driver->reaction_rate_coefficient_[ireac];
-            // if (rate_coef == 0.0) continue;
             if (rate_coef <= kMinimumRateCoefficient) continue;
 
             // 反応物と生成物のインデックスを取得
@@ -1662,8 +1466,7 @@ namespace nicole {
                 if (idx_p4 != kNotFoundSpecies) ydot_gain[idx_p4] += rate;
                 if (idx_p5 != kNotFoundSpecies) ydot_gain[idx_p5] += rate;
             }
-
-        } // end for ireac
+        }
 
         // 三相反応がある場合
         if (ptr_reaction_manager->is_three_phase_reaction_) {
@@ -1720,12 +1523,11 @@ namespace nicole {
                 ydot[idx_r1] -= rate;
                 ydot[idx_p1] += rate;
             }
-
-        } // end is_three_phase_reaction
+        }
     }
 
-    void ReactionSimulator::JacobianJth(int neq, Real t, Real *y, int j, int *ian, int *jan, Real *pdj, void *user_data)
-    {
+
+    void ReactionSimulator::JacobianJth(int neq, Real t, Real *y, int j, int *ian, int *jan, Real *pdj, void *user_data) {
         const std::size_t idx_j = static_cast<std::size_t>(j-1);
 
         // 必要なポインタをuser_dataから取得
@@ -1831,14 +1633,12 @@ namespace nicole {
                     if (idx_p4 != kNotFoundSpecies) pdj[idx_p4] += rate;
                     if (idx_p5 != kNotFoundSpecies) pdj[idx_p5] += rate;
                 }
-
             }
-
-        } // end for i
+        }
     }
 
-    void ReactionSimulator::Jacobian(int neq, Real t, Real *y, int ml, int mu, Real *pd, int nrowpd, void *user_data)
-    {
+
+    void ReactionSimulator::Jacobian(int neq, Real t, Real *y, int ml, int mu, Real *pd, int nrowpd, void *user_data) {
     #ifndef JAC
     #define JAC(i, j) ARRAY2D(pd, neq, i+1, j+1)
     #endif
@@ -1943,5 +1743,4 @@ namespace nicole {
     #undef JAC
     #endif
     }
-
-} // namespace danny
+}

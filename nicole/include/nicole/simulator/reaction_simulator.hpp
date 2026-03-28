@@ -71,23 +71,9 @@ namespace nicole {
             InputConfig& input
         );
 
-        /**
-         * @brief Destructor for the ReactionSimulator.
-         */
         ~ReactionSimulator();
 
-        /**
-         * @brief Calculate the rate coefficients for reactions.
-         * 
-         * This function calculate the rate coefficient independent on species abundances.
-         */
-        void CalculateRateCoefficient();
-
-        /**
-         * @brief Check the reaction rate coefficients and write results to file.
-         * 
-         * @param filename The name of the file to write the results to.
-         */
+        void CheckCalculationResult(const Real *species_abundances) const;
         void CheckReactionRateCoefficient(const std::string filename);
 
         /**
@@ -95,7 +81,7 @@ namespace nicole {
          * 
          * @param species_abundances Array of species abundances.
          */
-        void SetInitialSpeciesAbundances(double* species_abundances);
+        void SetInitialSpeciesAbundances(Real* species_abundances);
 
         /**
          * @brief Integrate species abundances over time using LSODE or LSODES.
@@ -105,7 +91,7 @@ namespace nicole {
          * @param species_abundances Array to store the integrated species abundances.
          * @return true if integration was successful, false otherwise.
          */
-        bool Integrate(double &t, const double tout, double *species_abundances);
+        bool Integrate(Real &t, const Real tout, Real *species_abundances);
 
         /**
          * @brief Integrate species abundances over time and write output to a file.
@@ -116,69 +102,24 @@ namespace nicole {
          * @param file Output file stream to write results.
          * @return true if integration was successful, false otherwise.
          */
-        bool Integrate(double &t, const double tout, double *species_abundances, std::ofstream& file);
+        bool Integrate(Real &t, const Real tout, Real *species_abundances, std::ofstream& file);
 
         /**
-         * @brief Check the calculation result by evaluating total charge, dust number density, and other quantities.
+         * @brief Calculate the rate coefficients for reactions.
          * 
-         * @param species_abundances Array of species abundances to check.
+         * This function calculate the rate coefficient independent on species abundances.
          */
-        void CheckCalculationResult(const double *species_abundances) const;
+        void CalculateRateCoefficient();
 
     private:
-
-        // Pointer to the species manager
-        SpeciesManager* ptr_species_manager_;
-
-        // Pointer to the reaction manager
-        ReactionManager* ptr_reaction_manager_;
-
-        // Pointer to the environment parameters
-        EnvironmentParameters *ptr_environment_parameters_;
-
-        // Initial abundances of species
-        std::vector<double> initial_species_abundances_;
-
-        // List of reaction rate coefficients
-        std::vector<double> reaction_rate_coefficient_;
-
-        // Flag for LSODE integrator, if true use LSODE, use LDODES otherwise.
-        bool is_lsode_integrator_;
-
-        // LSODE parameters
-        LsodeParameters lsode_parameters_;
-
-        // LSODES parameters
-        LsodesParameters lsodes_parameters_;
-
-        // Tolerance values for numerical integration
-        double relative_tolerance_;
-        double absolute_tolerance_;
-
-        // Variables for dust surface/mantle related reactions
-        double total_desorption_rate_;
-        double total_accretion_rate_;
-        double total_abundances_of_dust_surface_species_;
-        double total_abundances_of_dust_mantle_species_;
-        double number_of_surface_layers_;
-        double number_of_mantle_layers_;
-        double number_of_total_layers_;
-        double coverage_of_H2O_on_dust_surface_;
-        double coverage_of_silicate_on_dust_surface_;
-
-        /**
-         * @brief Read species abundances from a file.
-         * 
-         * @param filename The name of the file containing species abundances data.
-         */
         void ReadAbundancesFile(const std::string& filename);
 
-        // Reaction rate coefficient calculation functions
+        // Gas phase reaction rate coefficient calculation functions
         void CalculateGasPhaseReactionRateCoefficient();
-        using CalculateGasReactionRateFunction = double(ReactionSimulator::*)(const std::shared_ptr<Reaction> reaction, const double temperature);
-        double CalculateGasPhaseModifiedArrhenius(const std::shared_ptr<Reaction> reaction, const double temperature);
-        double CalculateGasPhaseIonpol1(const std::shared_ptr<Reaction> reaction, const double temperature);
-        double CalculateGasPhaseIonpol2(const std::shared_ptr<Reaction> reaction, const double temperature);
+        using CalculateGasReactionRateFunction = Real(ReactionSimulator::*)(const std::shared_ptr<Reaction> reaction, const Real temperature);
+        Real CalculateGasPhaseModifiedArrhenius(const std::shared_ptr<Reaction> reaction, const Real temperature);
+        Real CalculateGasPhaseIonpol1(const std::shared_ptr<Reaction> reaction, const Real temperature);
+        Real CalculateGasPhaseIonpol2(const std::shared_ptr<Reaction> reaction, const Real temperature);
 
         // Dust related reaction rate coefficient calculation functions
         void CalculateDustAndChargedParticleCollisionRateCoefficient();
@@ -190,8 +131,8 @@ namespace nicole {
         void CalculatePhotoDesorptionByCosmicRayGeneratedUVRateCoefficient();
         void CalculateDustSurfaceReactionRateCoefficient();
         void CalculateDustMantleReactionRateCoefficient();
-        void CalculateSpeciesAbundancesDependentRateCoefficient(const double *species_abundances);
-        void CalculateDustSurfaceAndMantleSwappingRateCoefficient(const double *species_abundances);
+        void CalculateSpeciesAbundancesDependentRateCoefficient(const Real *species_abundances);
+        void CalculateDustSurfaceAndMantleSwappingRateCoefficient(const Real *species_abundances);
 
         /**
          * @brief Check if the Jacobian is sparse based on a given threshold.
@@ -199,11 +140,11 @@ namespace nicole {
          * @param threshold Threshold for sparsity check.
          * @return true if the Jacobian is sparse, false otherwise.
          */
-        bool IsSparseJacobian(const double threshold);
+        bool IsSparseJacobian(const Real threshold);
 
         // Allocate and set work arrays for LSODE or LSODES
-        void AllocateAndSetLsodeWorkArrays();
-        void AllocateAndSetLsodesWorkArrays();
+        void AllocateAndSetLsodeArrays();
+        void AllocateAndSetLsodesArrays();
 
         // Reset LSODE or LSODES work arrays.
         void ResetLsodeWorkArrays();
@@ -218,7 +159,7 @@ namespace nicole {
          * @param ydot Derivative of the state vector.
          * @param user_data User-defined data passed to the function.
          */
-        static void OrdinaryDifferentialEquation(int neq, double t, double *y, double *ydot, void *user_data);
+        static void OrdinaryDifferentialEquation(int neq, Real t, Real *y, Real *ydot, void *user_data);
 
         /**
          * @brief Jacobian function for LSODES integration.
@@ -231,7 +172,7 @@ namespace nicole {
          * @param pdj Jacobian matrix values.
          * @param user_data User-defined data passed to the function.
          */
-        static void JacobianJth(int neq, double t, double *y, int j, int *ian, int *jan, double *pdj, void *user_data);
+        static void JacobianJth(int neq, Real t, Real *y, int j, int *ian, int *jan, Real *pdj, void *user_data);
         
         /**
          * @brief Full Jacobian matrix function for LSODE integration.
@@ -244,9 +185,33 @@ namespace nicole {
          * @param nrowpd Number of rows in the Jacobian.
          * @param user_data User-defined data passed to the function.
          */
-        static void Jacobian(int neq, double t, double *y, int ml, int mu, double *pd, int nrowpd, void *user_data);
+        static void Jacobian(int neq, Real t, Real *y, int ml, int mu, Real *pd, int nrowpd, void *user_data);
+
+        SpeciesManager* ptr_species_manager_;
+        ReactionManager* ptr_reaction_manager_;
+        EnvironmentParameters *ptr_environment_parameters_;
+
+        std::vector<Real> initial_species_abundances_;
+        std::vector<Real> reaction_rate_coefficient_;
+
+        bool is_lsode_integrator_;  // Flag for LSODE integrator, if true use LSODE, use LDODES otherwise.
+        LsodeParameters lsode_parameters_;
+        LsodesParameters lsodes_parameters_;
+
+        Real relative_tolerance_;
+        Real absolute_tolerance_;
+
+        // Variables for dust surface/mantle related reactions
+        Real total_desorption_rate_;
+        Real total_accretion_rate_;
+        Real total_abundances_of_dust_surface_species_;
+        Real total_abundances_of_dust_mantle_species_;
+        Real number_of_surface_layers_;
+        Real number_of_mantle_layers_;
+        Real number_of_total_layers_;
+        Real coverage_of_H2O_on_dust_surface_;
+        Real coverage_of_silicate_on_dust_surface_;
     };
-    
 } // namespace nicole
 
 #endif /* REACTION_SIMULATOR_HPP */
