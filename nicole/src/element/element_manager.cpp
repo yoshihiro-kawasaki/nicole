@@ -8,6 +8,9 @@
 namespace nicole {
     ElementManager::ElementManager(InputConfig& input) : number_of_elements_(0) {
         ReadElementFile(input.GetString("element_file"));
+        if (number_of_elements_ == 0) {
+            std::cout << "WARNING: 読み込まれた元素数が0です。" << std::endl;
+        }
     }
 
 
@@ -20,20 +23,21 @@ namespace nicole {
 
 
     Real ElementManager::GetElementMass(ElementID id) const {
+        constexpr Real dummy_mass = 0.0;
         if (id < element_list_.size()) {
             return element_list_[id]->GetMass();
         }
-        return 0.0;
+        return dummy_mass;
     }
 
 
-    ElementID ElementManager::FindIdElement(const std::string& element_name) const {
+    ElementID ElementManager::FindElementIdByName(const std::string& element_name) const {
         for (std::size_t i = 0; i < element_list_.size(); ++i) {
             if (element_list_[i]->GetName() == element_name) {
                 return static_cast<ElementID>(i);
             }
         }
-        return kNotFoundElement;
+        return nicole::kNotFoundElement;
     }
 
 

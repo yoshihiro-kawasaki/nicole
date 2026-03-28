@@ -20,7 +20,7 @@ namespace nicole {
         SpeciesManager(
             ElementManager *ptr_element_manager,
             InputConfig& input,
-            const std::vector<std::string> user_gas_species_list
+            const std::vector<std::string>& user_gas_species_list
         );
 
         void CheckSpeciesManager(const std::string& filename) const;
@@ -70,16 +70,16 @@ namespace nicole {
 
         void SetUpSpecialSpeciesIndex();
         void SetUpSpeciesNameList();
+        void SetUpNumberOfSpecies();
 
-        // Member variables to store pointers to species and related information
-        ElementManager* ptr_element_manager_;  // Pointer to ElementManager for handling elements
+        ElementManager* ptr_element_manager_;
 
         // Vectors to hold species lists
-        std::vector<std::shared_ptr<Species> > species_list_;  // General list of all species
-        std::vector<std::shared_ptr<GasSpecies> > gas_species_list_;  // List of gas species
-        std::vector<std::shared_ptr<DustSurfaceSpecies> > dust_surface_species_list_;  // List of dust surface species
-        std::vector<std::shared_ptr<DustMantleSpecies> > dust_mantle_species_list_;  // List of dust mantle species
-        std::vector<std::shared_ptr<DustSpecies> > dust_species_list_;  // List of dust species
+        std::vector<std::shared_ptr<Species> > species_list_;
+        std::vector<std::shared_ptr<GasSpecies> > gas_species_list_;
+        std::vector<std::shared_ptr<DustSurfaceSpecies> > dust_surface_species_list_;
+        std::vector<std::shared_ptr<DustMantleSpecies> > dust_mantle_species_list_;
+        std::vector<std::shared_ptr<DustSpecies> > dust_species_list_;
 
         // Lists of species names
         std::vector<std::string> species_name_list_;
@@ -95,17 +95,17 @@ namespace nicole {
         std::size_t number_of_dust_mantle_species_;
         std::size_t number_of_dust_species_;
 
-        // Indices for special species
-        std::size_t index_electron_;
-        std::size_t index_H_;
-        std::size_t index_H2_;
-        std::size_t index_He_;
-        std::size_t index_CO_;
-        std::size_t index_sH_;
-        std::size_t index_sH2_;
-        std::size_t index_mH_;
-        std::size_t index_mH2_;
-        std::size_t index_sH2O_;
+        // ID for special species
+        std::size_t id_electron_;
+        std::size_t id_H_;
+        std::size_t id_H2_;
+        std::size_t id_He_;
+        std::size_t id_CO_;
+        std::size_t id_sH_;
+        std::size_t id_sH2_;
+        std::size_t id_mH_;
+        std::size_t id_mH2_;
+        std::size_t id_sH2O_;
 
         // Flags for different types of species and reactions
         bool is_dust_species_;

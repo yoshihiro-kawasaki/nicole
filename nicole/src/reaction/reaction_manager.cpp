@@ -19,16 +19,8 @@ namespace nicole {
         is_H2_self_shielding_(false),
         is_CO_self_shielding_(false)
     {
-        // Check if ptr_species_manager_ is nullptr
-        if (ptr_species_manager_ == nullptr) {
-            std::cerr << "Error: ptr_species_manager is nullptr" << std::endl;
-            throw std::runtime_error("SpeciesManager pointer is null");
-        }
-
-        // Read the gas phase reaction file specified in the input configuration
         ReadGasPhaseReactionFile(input.GetString("gas_reaction_file"));
 
-        // If dust species are present, generate reactions related to dust and charged particle collisions
         if (ptr_species_manager_->is_dust_species_) {
             GenerateReactionListForDustAndChargedParticleCollision();
             if (is_dust_collision_) {
@@ -36,7 +28,6 @@ namespace nicole {
             }
         }
 
-        // If dust surface reactions are enabled, generate the corresponding reaction lists
         if (is_dust_surface_reaction_) {
             // Generate reactions for various processes on dust surfaces
             GenerateReactionListForNeutralSpeciesAccretionOnDustSurfaces();
@@ -47,37 +38,28 @@ namespace nicole {
             GenerateReactionListForPhotoDissociationInducedByCRsOnDustSurfaces();
             GenerateReactionListForPhotoDissociationByExternalUVOnDustSurfaces();
 
-            // Read the dust surface reaction data from the specified file
             ReadDustSurfaceReactionFile(input.GetString("dust_surface_reaction_file"));
 
-            // If three-phase reactions are enabled, generate additional reaction lists
             if (is_three_phase_reaction_) {
                 GenerateReactionListForDustMantleReaction();
                 GenerateReactionListForDustSurfaceToMantleSwapping();
                 GenerateReactionListForDustMantleToSurfaceSwapping();
             }
 
-            // Read the activation energy data from the specified file
             ReadSurfaceActivationEnergyFile(input.GetString("activation_energy_file"));
         }
 
-        // Finalize the setup by calculating the total number of reactions and indices.
         total_number_of_reactions_ = reaction_list_.size();
         CountNumberOfEachTypeReactions();
         SetReactionTypeIdStartAndEnd();
         SetReactionsInvolvedWithSpecies();
 
-        // Calculate branching ratio and chemical desorption probabilities if needed
         CalculateReactionBranchingRatio();
         if (is_chemical_desorption_) CalculateChemicalDesorptionProbabilities();
     }
 
-    /**
-     * @brief Checks the consistency of the ReactionManager by verifying reaction data from the specified file.
-     * @param filename The name of the file containing reaction data to verify.
-     */
-    void ReactionManager::CheckReactionManager(const std::string& filename) 
-    {
+
+    void ReactionManager::CheckReactionManager(const std::string& filename) {
         std::ofstream file(filename, std::ios::out | std::ios::trunc);
         if (!file.is_open()) {
             return;
@@ -244,23 +226,19 @@ namespace nicole {
             // Skip empty lines or comment lines (starting with '!' or '#')
             if (line.empty() || line[0] == '!' || line[1] == '#') continue;
             
-            // Split the line into components based on expected format
             std::vector<std::string> split_result = SplitGasReactionLine(line);
-
-            // Ensure that the split result has the correct number of elements
             if (split_result.size() < 19) {
                 std::cerr << "Warning: Invalid format in line: " << line << " : line number = " << line_number << std::endl;
                 continue;
             }
 
-            // Extract reactant species names (first 3 elements in split result)
+            // Extract reactants and products
             std::vector<std::string> reactants = {
                 split_result[0], 
                 split_result[1], 
                 split_result[2]
             };
             
-            // Extract product species names (next 5 elements in split result)
             std::vector<std::string> products = {
                 split_result[3], 
                 split_result[4], 
@@ -269,30 +247,21 @@ namespace nicole {
                 split_result[7]
             };
 
-            // Check if all reactants and products are valid (i.e., exist in the species list)
             if (!AreReactionSpeciesInSpeciesNameList(reactants, products)) continue;
             
-            // Get the indices of the reactants and products from the species manager
             std::vector<SpeciesID> reactant_ids = GetSpeciesIDList(reactants);
             std::vector<SpeciesID> product_ids  = GetSpeciesIDList(products);
 
-            // Extract reaction rate parameters from the line
+            // Extract reaction parameters 
             const Real alpha = std::stod(split_result[8]);
             const Real beta  = std::stod(split_result[9]);
             const Real gamma = std::stod(split_result[10]);
-
-            // Extract the reaction type ID (used to classify the reaction)
             std::size_t type_id = std::stoul(split_result[14]);
-
-            // Extract temperature limits for the reaction
             const Real temperature_lower_limit = std::stod(split_result[15]);
             const Real temperature_upper_limit = std::stod(split_result[16]);
-
-            // Extract the formula ID and reaction ID
             const std::size_t gas_phase_formula_id = std::stoul(split_result[17]);
             const std::size_t gas_phase_id = std::stoul(split_result[18]);
 
-            // Store the rate parameters in a vector for the Reaction object
             std::vector<Real> rate_parameters(gas_phase_reaction_params::kNumParams);
             rate_parameters[gas_phase_reaction_params::kAlpha] = alpha;
             rate_parameters[gas_phase_reaction_params::kBeta]  = beta;
@@ -302,10 +271,8 @@ namespace nicole {
             rate_parameters[gas_phase_reaction_params::kFormulaID] = gas_phase_formula_id;
             rate_parameters[gas_phase_reaction_params::kID] = gas_phase_id;
 
-            // A placeholder value for the index (dummy value in this case)
-            const std::size_t dummy_index = 0;
-
             // Create a new Reaction object and add it to the temporary list
+            const std::size_t dummy_index = 0;
             local_gas_reaction_list.emplace_back(std::make_shared<Reaction>(
                 dummy_index,
                 reactant_ids,
@@ -375,7 +342,6 @@ namespace nicole {
         const std::size_t type_id = reaction_type_id::kDustSurfaceReaction;
         std::size_t index = reaction_list_.size();
 
-        // Read file line by line
         std::string line;
         std::vector<std::string> previous_reactants;
         std::vector<std::string> previous_products;
@@ -384,7 +350,6 @@ namespace nicole {
             // Skip empty lines or comment lines
             if (line.empty() || line[0] == '!' || line[1] == '#') continue;
 
-            // Split the line into separate components
             std::vector<std::string> split_result = SplitDustSurfaceReactionLine(line);
 
             // Store the reactants
@@ -417,21 +382,19 @@ namespace nicole {
                 }
             }
 
-            // Check if all reaction species are in the species name list
             if (!AreReactionSpeciesInSpeciesNameList(reactants, products)) continue;
 
             // Skip if the current reaction is identical to the previous one to avoid duplicates
             if (reactants == previous_reactants && products == previous_products) continue;
 
-            // Get the indices of reactants and products in the species list
             std::vector<std::size_t> reactant_ids = GetSpeciesIDList(reactants);
             std::vector<std::size_t> product_ids = GetSpeciesIDList(products);
 
-            // Retrieve DustSurfaceSpecies for reactants
+            // Get DustSurfaceSpecies Object for reactants
             std::shared_ptr<DustSurfaceSpecies> dust_surface_species1 = ptr_species_manager_->FindDustSurfaceSpeciesByName(reactants[0]);
             std::shared_ptr<DustSurfaceSpecies> dust_surface_species2 = ptr_species_manager_->FindDustSurfaceSpeciesByName(reactants[1]);
 
-            // Set up reaction rate parameters
+            // Reaction parameters
             std::vector<Real> rate_parameters(dust_surface_reaction_params::kNumParams);
             rate_parameters[dust_surface_reaction_params::kVibrationFrequency1] = dust_surface_species1->GetVibrationFrequencyOnH2Oice();
             rate_parameters[dust_surface_reaction_params::kVibrationFrequency2] = dust_surface_species2->GetVibrationFrequencyOnH2Oice();
@@ -452,7 +415,7 @@ namespace nicole {
             previous_reactants = reactants;
             previous_products = products;
 
-            // Handle chemical desorption reactions
+            // Chemical desorption reactions
             if (is_chemical_desorption_) {
                 if (products[1] == "" && products[2] == "") {
                     std::vector<std::string> products_cd = products;
@@ -611,11 +574,8 @@ namespace nicole {
                         type_id
                         )
                     );
-
                 }
-
             } // End chemical desorption
-
         } // End while loop
 
         if (is_H2_desorption_) {
@@ -636,18 +596,17 @@ namespace nicole {
                 ""
             };
 
-            // Check if all reaction species are in the species name list
             if (!AreReactionSpeciesInSpeciesNameList(reactants, products)) return;
 
             // Get the indices of reactants and products in the species list
             std::vector<std::size_t> reactant_ids = GetSpeciesIDList(reactants);
             std::vector<std::size_t> product_ids = GetSpeciesIDList(products);
 
-            // Retrieve DustSurfaceSpecies for reactants
+            // Get DustSurfaceSpecies object for reactants
             std::shared_ptr<DustSurfaceSpecies> dust_surface_species1 = ptr_species_manager_->FindDustSurfaceSpeciesByName(reactants[0]);
             std::shared_ptr<DustSurfaceSpecies> dust_surface_species2 = ptr_species_manager_->FindDustSurfaceSpeciesByName(reactants[1]);
 
-            // Set up reaction rate parameters
+            // Set up reaction parameters
             std::vector<Real> rate_parameters(dust_surface_reaction_params::kNumParams);
             rate_parameters[dust_surface_reaction_params::kVibrationFrequency1] = dust_surface_species1->GetVibrationFrequencyOnH2Oice();
             rate_parameters[dust_surface_reaction_params::kVibrationFrequency2] = dust_surface_species2->GetVibrationFrequencyOnH2Oice();
@@ -712,16 +671,11 @@ namespace nicole {
             return;
         }
 
-        // Read each line of the file
         std::string line;
         std::vector<std::string> previous_reactants;
         std::vector<std::string> previous_products;
         while (std::getline(file, line)) {
-            
-            // Split the line into individual components
             std::vector<std::string> split_result = SplitSurfaceActivationEnergyLine(line);
-
-            // Check if the line contains sufficient data
             if (split_result.size() < 9) {
                 std::cerr << "Error: Insufficient data in line: " << line << std::endl;
                 continue;
@@ -775,13 +729,10 @@ namespace nicole {
 
             // Search for the reaction in the dust surface reaction list
             for (auto& reaction : reaction_list_) {
-
                 if (reaction->type_id_ != reaction_type_id::kDustSurfaceReaction) continue;
 
                 // Check if reactant and product indices match
-                if (reactant_ids == reaction->reactant_ids_ &&
-                    product_ids  == reaction->product_ids_) {
-
+                if (reactant_ids == reaction->reactant_ids_ && product_ids  == reaction->product_ids_) {
                     // Update mass and rate parameters for the reaction
                     const Real mass1 = ptr_species_manager_->species_list_[reactant_ids[0]]->GetMass();
                     const Real mass2 = ptr_species_manager_->species_list_[reactant_ids[1]]->GetMass();
@@ -791,14 +742,12 @@ namespace nicole {
                     
                     break; // Exit loop once the reaction is found
                 }
-
             }
 
             // Update previous reactants and products for next iteration
             previous_reactants = reactants;
             previous_products  = products;
-
-        } // end read file
+        }
 
         if (!is_three_phase_reaction_) return;
 
@@ -806,12 +755,8 @@ namespace nicole {
         file.clear();
         file.seekg(0);
 
-        // Read dust mantle reaction activation energies
         while (std::getline(file, line)) {
-            // Split the line into individual components
             std::vector<std::string> split_result = SplitSurfaceActivationEnergyLine(line);
-
-            // Check if the line contains sufficient data
             if (split_result.size() < 9) {
                 std::cerr << "Error: Insufficient data in line: " << line << std::endl;
                 continue;
@@ -865,13 +810,10 @@ namespace nicole {
 
             // Search for the reaction in the dust mantle reaction list
             for (auto& reaction : reaction_list_) {
-
                 if (reaction->type_id_ == reaction_type_id::kDustMantleReaction) continue;
 
                 // Check if reactant and product indices match
-                if (reactant_ids == reaction->reactant_ids_ &&
-                    product_ids  == reaction->product_ids_) {
-
+                if (reactant_ids == reaction->reactant_ids_ && product_ids  == reaction->product_ids_) {
                     // Update mass and rate parameters for the reaction
                     const Real mass1 = ptr_species_manager_->species_list_[reactant_ids[0]]->GetMass();
                     const Real mass2 = ptr_species_manager_->species_list_[reactant_ids[1]]->GetMass();
@@ -881,18 +823,15 @@ namespace nicole {
                     
                     break;
                 }
-
-            } // end read file
+            }
 
             // Update previous reactants and products for next iteration
             previous_reactants = reactants;
             previous_products  = products;
-
-        } // end while
+        }
     }
 
     
-
     /**
      * @brief Generate a list of reactions for dust particle and charged gas particle collisions.
      *
@@ -931,10 +870,8 @@ namespace nicole {
 
             // Handle electron interactions (e- + Dust(x) -> DUST(x-1))
             if (gas_species_name == kElectron) {
-
                 // Iterate over each dust species
                 for (auto const& dust_species : ptr_species_manager_->dust_species_list_) {
-
                     // Get the bin number and charge of the dust species
                     const std::size_t bin_number = dust_species->GetBinNumber();
                     const int dust_charge = dust_species->GetCharge();
@@ -986,10 +923,9 @@ namespace nicole {
                         )
                     );
 
-                } // End of loop over dust species
+                }
 
                 continue; // next gas species
-
             } // end if gas_species_name == "e-"
 
             // Handle reactions with other charged particles
@@ -998,14 +934,12 @@ namespace nicole {
 
             // Check if the corresponding neutral gas species exists in the list
             if (string_utils::IsInStringVector(ptr_species_manager_->gas_species_name_list_, neutral_gas_species_name)) {
-
                 // If it exists, branch based on whether the gas species is positively or negatively charged
                 if (gas_species->GetCharge() > 0) {
                     // For positive charges: M+ + Dust(x) -> M + Dust(x+1), charge exchange
 
                     // Iterate over each dust species
                     for (const auto& dust_species : ptr_species_manager_->dust_species_list_) {
-
                         // Get dust species information (bin number and charge)
                         const std::size_t bin_number = dust_species->GetBinNumber();
                         const int dust_charge = dust_species->GetCharge();
@@ -1057,13 +991,11 @@ namespace nicole {
                             )
                         );
                     } // End loop over dust species (positive charge case)
-
                 } else {
                     // For negative charges: M- + Dust(x) -> M + Dust(x-1), charge exchange
 
                     // Iterate over each dust species
                     for (const auto& dust_species : ptr_species_manager_->dust_species_list_) {
-
                         // Get dust species information (bin number and charge)
                         const std::size_t bin_number = dust_species->GetBinNumber();
                         const int dust_charge = dust_species->GetCharge();
@@ -1116,9 +1048,7 @@ namespace nicole {
                         );
 
                     } // End loop over dust species (negative charge case)
-
                 } // End charge check
-
             } else {
                 // If the charged particle does not exist in the list of neutral particles 
                 // (e.g., for H3+, there is no H3 in the considered species list)
@@ -1138,8 +1068,8 @@ namespace nicole {
                         // Check the reactants
                         bool skip = true;
                         // Check if there is a reaction between the charged particle and electrons
-                        if ((reaction->reactant_ids_[0] == gas_species_index && reaction->reactant_ids_[1] == ptr_species_manager_->index_electron_) ||
-                            (reaction->reactant_ids_[1] == gas_species_index && reaction->reactant_ids_[0] == ptr_species_manager_->index_electron_)) {
+                        if ((reaction->reactant_ids_[0] == gas_species_index && reaction->reactant_ids_[1] == ptr_species_manager_->id_electron_) ||
+                            (reaction->reactant_ids_[1] == gas_species_index && reaction->reactant_ids_[0] == ptr_species_manager_->id_electron_)) {
                             skip = false;
                         }
                         if (skip) continue; // Skip if the reaction doesn't exist
@@ -1164,7 +1094,7 @@ namespace nicole {
                             std::vector<std::size_t> reactant_ids(number_of_reactant, kNotFoundSpecies);
                             // Replace the electron in the reactants with the dust species
                             for (std::size_t index = 0; index < number_of_reactant; ++index) {
-                                if (reaction->reactant_ids_[index] == ptr_species_manager_->index_electron_) {
+                                if (reaction->reactant_ids_[index] == ptr_species_manager_->id_electron_) {
                                     reactant_ids[index] = ptr_species_manager_->FindSpeciesID(dust_species->GetName());
                                 } else {
                                     reactant_ids[index] = reaction->reactant_ids_[index];
@@ -1213,7 +1143,6 @@ namespace nicole {
                 // (There is no processing for anions here)
 
             } // end else (gas_species does not have a corresponding neutral species)
-
         } // end for gas_species
     }
 
@@ -1251,7 +1180,7 @@ namespace nicole {
                 const auto& reactant_dust_species1 = ptr_species_manager_->FindDustSpeciesByBinNumberAndCharge(bin_number1, dust_charge1);
                 if (!reactant_dust_species1) continue;
 
-                for (std::size_t bin_number2 = 1; bin_number2 <= number_of_dust_bins; ++bin_number2) { // // Collision dust 2
+                for (std::size_t bin_number2 = 1; bin_number2 <= number_of_dust_bins; ++bin_number2) { // Collision dust 2
 
                     // Loop through negative dust
                     for (int dust_charge2 = -1; dust_charge2 >= min_dust_charge_number; --dust_charge2) { // negativeダストでloop
@@ -1938,18 +1867,18 @@ namespace nicole {
 
             // Set up the reactants for this swapping reaction: the dust surface species
             std::vector<std::string> reactants = {
-                dust_surface_species->GetName(),  // Dust surface species name
-                "",  // Placeholder for future reactants (empty in this case)
-                ""   // Placeholder for future reactants (empty in this case)
+                dust_surface_species->GetName(),
+                "",
+                ""
             };
 
             // Set up the products for this swapping reaction: the corresponding dust mantle species
             std::vector<std::string> products = {
-                corresponding_dust_mantle_species->GetName(),  // Dust mantle species name
-                "",  // Placeholder for future products (empty in this case)
-                "",  // Placeholder for future products (empty in this case)
-                "",  // Placeholder for future products (empty in this case)
-                ""   // Placeholder for future products (empty in this case)
+                corresponding_dust_mantle_species->GetName(),
+                "",
+                "",
+                "",
+                ""
             };
 
             // Get the indices of the reactants and products in the species list
@@ -1990,18 +1919,18 @@ namespace nicole {
 
             // Set up the reactants for this swapping reaction: the dust mantle species
             std::vector<std::string> reactants = {
-                dust_mantle_species->GetName(),  // Dust mantle species name
-                "",  // Placeholder for future reactants (empty in this case)
-                ""   // Placeholder for future reactants (empty in this case)
+                dust_mantle_species->GetName(),
+                "",
+                ""
             };
 
             // Set up the products for this swapping reaction: the corresponding dust surface species
             std::vector<std::string> products = {
-                corresponding_dust_surface_species->GetName(),  // Dust surface species name
-                "",  // Placeholder for future products (empty in this case)
-                "",  // Placeholder for future products (empty in this case)
-                "",  // Placeholder for future products (empty in this case)
-                ""   // Placeholder for future products (empty in this case)
+                corresponding_dust_surface_species->GetName(),
+                "",
+                "",
+                "",
+                ""
             };
 
             // Get the indices of the reactants and products in the species list
@@ -2323,7 +2252,6 @@ namespace nicole {
         for(std::size_t ireac = 0; ireac < total_number_of_reactions_; ++ireac) {
             // Get the type ID for the current reaction
             std::size_t itype = reaction_list_[ireac]->type_id_;
-            
             // Increment the count for the corresponding reaction type
             number_of_each_type_reactions_[itype]++;
         }

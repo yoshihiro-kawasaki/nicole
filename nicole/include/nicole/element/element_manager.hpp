@@ -19,7 +19,7 @@ namespace nicole {
         double GetElementMass(ElementID id) const;
         std::size_t GetNumberOfElements() const { return number_of_elements_; }
 
-        ElementID FindIdElement(const std::string& element_name) const;
+        ElementID FindElementIdByName(const std::string& element_name) const;
         void AddElement(std::shared_ptr<Element> element);
 
         void DisplayElements() const;

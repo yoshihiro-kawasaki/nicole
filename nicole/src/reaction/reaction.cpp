@@ -59,7 +59,6 @@ namespace nicole {
             file << std::setw(11) << species_name << " ";
         }
 
-        // Loop through and write products to file
         for (const SpeciesID id : product_ids_) {
             if (id == kNotFoundSpecies) {
                 species_name = kEmptyString;

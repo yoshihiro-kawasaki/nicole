@@ -1,10 +1,11 @@
 #ifndef REACTION_SIMULATOR_HPP_
 #define REACTION_SIMULATOR_HPP_
 
+#include <vector>
+
 #include "nicole/nicole_defs.hpp"
 #include "nicole/species/species_manager.hpp"
 #include "nicole/reaction/reaction_manager.hpp"
-// #include "../shielding/self_shielding_factor.hpp"
 #include "odepack_cpp/odepack.hpp"
 
 namespace nicole {
@@ -15,16 +16,16 @@ namespace nicole {
     struct LsodesParameters {
         int liw;
         int lrw;
-        double *rwork;
-        int *iwork;
+        std::vector<Real> rwork;
+        std::vector<int> iwork;
         int itol;
-        double *rtol;
-        double *atol;
+        std::vector<Real> rtol;
+        std::vector<Real> atol;
         int itask;
         int iopt;
         int mf;
         int istate;
-        bool is_allocate_work_arrays;
+        bool is_allocate_arrays;
     };
 
     /**
@@ -34,16 +35,16 @@ namespace nicole {
     struct LsodeParameters {
         int liw;
         int lrw;
-        double *rwork;
-        int *iwork;
-        bool is_allocate_work_arrays;
+        std::vector<Real> rwork;
+        std::vector<int> iwork;
         int itol;
-        double *rtol;
-        double *atol;
+        std::vector<Real> rtol;
+        std::vector<Real> atol;
         int itask;
         int iopt;
         int mf;
         int istate;
+        bool is_allocate_arrays;
     };
 
     /**

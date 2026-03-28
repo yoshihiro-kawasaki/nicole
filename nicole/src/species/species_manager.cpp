@@ -18,54 +18,31 @@ namespace nicole {
         is_dust_surface_reaction_(config.GetBool("is_dust_surface_reaction")),
         is_three_phase_reaction_(config.GetBool("is_three_phase_reaction"))
     {
-        // Check ptr_element_manager
-        if (ptr_element_manager_ == nullptr) {
-            std::cerr << "Error: ptr_element_manager is nullptr" << std::endl;
-            throw std::runtime_error("ElementManager pointer is null");
-        }
-
         // Set up
         SetUpGasSpecies(config);
         if (is_dust_species_) SetUpDustRelatedSpecies(config);
         SetUpSpeciesNameList();
         SetUpSpecialSpeciesIndex();
-
-        // Set the total number of species and the number of species in each category
-        number_of_gas_species_ = gas_species_list_.size();
-        number_of_dust_surface_species_ = dust_surface_species_list_.size();
-        number_of_dust_mantle_species_ = dust_mantle_species_list_.size();
-        number_of_dust_species_ = dust_species_list_.size();
-        total_number_of_species_ = species_list_.size();
+        SetUpNumberOfSpecies();
     }
 
 
     SpeciesManager::SpeciesManager(
         ElementManager *ptr_element_manager, 
         InputConfig& config, 
-        const std::vector<std::string> user_gas_species_list
+        const std::vector<std::string>& user_gas_species_list
     ) : ptr_element_manager_(ptr_element_manager),
         dust_species_model_parameters_(config),
         is_dust_species_(config.GetBool("is_dust")),
         is_dust_surface_reaction_(config.GetBool("is_dust_surface_reaction")),
         is_three_phase_reaction_(config.GetBool("is_three_phase_reaction"))
     {
-        if (ptr_element_manager_ == nullptr) {
-            std::cerr << "Error: ptr_element_manager is nullptr" << std::endl;
-            throw std::runtime_error("ElementManager pointer is null");
-        }
-
         // Set up
         SetUpGasSpecies(config, user_gas_species_list);
         if (is_dust_species_) SetUpDustRelatedSpecies(config);
         SetUpSpeciesNameList();
         SetUpSpecialSpeciesIndex();
-
-        // Set the total number of species and the number of species in each category
-        number_of_gas_species_ = gas_species_list_.size();
-        number_of_dust_surface_species_ = dust_surface_species_list_.size();
-        number_of_dust_mantle_species_ = dust_mantle_species_list_.size();
-        number_of_dust_species_ = dust_species_list_.size();
-        total_number_of_species_ = species_list_.size();
+        SetUpNumberOfSpecies();
     }
 
 
@@ -144,10 +121,7 @@ namespace nicole {
         // Default element composition (for dust species)
         static const std::vector<std::size_t> default_composition(ptr_element_manager_->GetNumberOfElements());
 
-        // Check if the index is valid and within the bounds of the species list
         if (id >= species_list_.size()) return default_composition;
-        
-        // For dust species
         if (species_list_[id]->GetSpeciesType() == SpeciesType::Dust) return default_composition;
 
         // For gas species and dust-surface species, dust-mantle species
@@ -169,6 +143,7 @@ namespace nicole {
                 return 0.0; // Dust species type does not have binding energy on H2O ice
         }
     }
+
 
     Real SpeciesManager::GetSpeciesBindingEnergyOnSilicate(const SpeciesID id) const {
         // If the index is out of bounds, return binding energy=0.0.
@@ -309,27 +284,17 @@ namespace nicole {
             // Skip empty lines and comments
             if (line.empty() || line[0] == '#' || line[0] == '!') continue; 
 
-            // Split the line into tokens
             std::vector<std::string> split_result = string_utils::Split(line, ' ', true);
 
             // Validate format: Expecting (name, charge, element composition)
             if (split_result.size() != number_of_elements + 2) {
                 std::cerr << "Warning: Incorrect format in line " << line_number << ": " << line << std::endl;
-                std::cout << split_result.size() << " " << number_of_elements << std::endl;
-                for (const auto item : split_result) {
-                    std::cout << "'" << item << "'" << " ";
-                }
-                std::cout << std::endl;
                 continue;
             }
 
-            // Extract species name
             const std::string& gas_species_name = split_result[0];
-
-            // Skip species that start with "GRAIN"
             if (gas_species_name.rfind("GRAIN", 0) == 0) continue;
 
-            // Extract species charge
             int gas_species_charge;
             try {
                 gas_species_charge = std::stoi(split_result[1]);
@@ -338,7 +303,6 @@ namespace nicole {
                 continue;
             }
 
-            // Extract element composition
             std::vector<std::size_t> gas_species_element_composition(number_of_elements);
             try {
                 for (std::size_t i = 0; i < number_of_elements; ++i) {
@@ -349,7 +313,6 @@ namespace nicole {
                 continue;
             }
 
-            // Create GasSpecies object and add to list
             auto gas_species = std::make_shared<GasSpecies>(
                 dummy_index,
                 gas_species_name,
@@ -387,22 +350,15 @@ namespace nicole {
             // Skip empty lines and comments
             if (line.empty() || line[0] == '#') continue;
 
-            // Split the line into tokens
             std::vector<std::string> split_result = string_utils::Split(line, ' ', true);
-
-            // Ensure the expected number of tokens exist
             if (split_result.size() < 4) {
                 std::cerr << "Warning: Incorrect format in line " << line_number << ": " << line << std::endl;
                 continue;
             }
 
-            // Extract species name
             const std::string species_name = split_result[0];
-
-            // Generate dust surface species name
             const std::string dust_surface_species_name = kDustSurfaceSpeciesPrefix + species_name;
 
-            // Extract binding energies
             Real binding_energy_on_H2O_ice = 0.0;
             Real binding_energy_on_bare_silicate = 0.0;
             try {
@@ -416,16 +372,11 @@ namespace nicole {
 
             // Find corresponding gas-phase species
             const auto corresponding_gas_species = FindGasSpeciesByName(species_name);
-            if (!corresponding_gas_species) {
-                // std::cerr << "Warning: No corresponding gas species for " << species_name << " in line " << line_number << std::endl;
-                continue;
-            }
+            if (!corresponding_gas_species) continue;
 
-            // Set binding energies for the gas species
             corresponding_gas_species->SetBindingEnergyOnH2Oice(binding_energy_on_H2O_ice);
             corresponding_gas_species->SetBindingEnergyOnBareSilicate(binding_energy_on_bare_silicate);
 
-            // Create dust surface species
             auto dust_surface_species = std::make_shared<DustSurfaceSpecies>(
                 index++,
                 dust_surface_species_name,
@@ -434,13 +385,11 @@ namespace nicole {
                 binding_energy_on_bare_silicate
             );
 
-            // Store the created dust surface species
             species_list_.emplace_back(dust_surface_species);
             dust_surface_species_list_.emplace_back(dust_surface_species);
 
             // Link the gas species to its corresponding surface species
             corresponding_gas_species->SetCorrespondingSurfaceSpecies(dust_surface_species);
-
         }
 
         file.close();
@@ -462,11 +411,8 @@ namespace nicole {
 
             // Skip empty lines and comments
             if (line.empty() || line[0] == '#' || line[0] == '!') continue;
-
-            // Split the line into tokens
+ 
             std::vector<std::string> split_result = string_utils::Split(line, ' ', true);
-
-            // Validate format
             if (split_result.size() < 2) {
                 std::cerr << "Warning: Invalid format at line " << line_number << " in " << file_path << std::endl;
                 continue;
@@ -476,35 +422,31 @@ namespace nicole {
             Real species_enthalpy = 0.0;
 
             try {
-                species_enthalpy = std::stod(split_result[1]); // Convert string to Real
+                species_enthalpy = std::stod(split_result[1]);
             } catch (const std::invalid_argument& e) {
                 std::cerr << "Warning: Invalid enthalpy value at line " << line_number << " in " << file_path << std::endl;
                 continue;
             }
 
-            // Retrieve the corresponding gas species
             const auto& gas_species = FindGasSpeciesByName(species_name);
-            if (!gas_species) {
-                // std::cerr << "Warning: No corresponding gas species for '" << species_name << "' at line " << line_number << std::endl;
-                continue;
-            }
-
-            // Set enthalpy for gas species
+            if (!gas_species) continue;  // 読み込んだガス種が存在しない場合、スキップ
             gas_species->SetEnthalpyOfFormation(species_enthalpy);
 
-            // Retrieve and set enthalpy for corresponding dust surface species
-            if (const auto& dust_surface_species = gas_species->GetCorrespondingSurfaceSpecies()) {
-                dust_surface_species->SetEnthalpyOfFormation(species_enthalpy);
-            } else {
-                std::cerr << "Warning: No corresponding dust surface species for '" << species_name << "' at line " << line_number << std::endl;
-            }
 
-            // If three-phase reactions are enabled, set enthalpy for dust mantle species
+            const auto& dust_surface_species = gas_species->GetCorrespondingSurfaceSpecies();
+            if (!dust_surface_species) {
+                // ガス種に対応するダスト表面種が存在しない場合は、警告文を出して、スキップ
+                std::cerr << "Warning: No corresponding dust surface species for '" << species_name << "' at line " << line_number << std::endl;
+                continue;
+            }
+            dust_surface_species->SetEnthalpyOfFormation(species_enthalpy);
+
             if (is_three_phase_reaction_) {
-                if (const auto& dust_mantle_species = gas_species->GetCorrespondingMantleSpecies()) {
-                    dust_mantle_species->SetEnthalpyOfFormation(species_enthalpy);
-                } else {
+                const auto& dust_mantle_species = gas_species->GetCorrespondingMantleSpecies();
+                if (!dust_mantle_species) {
+                    // ダスト表面種が存在しない場合は、警告文を出して、スキップ
                     std::cerr << "Warning: No corresponding dust mantle species for '" << species_name << "' at line " << line_number << std::endl;
+                    continue;
                 }
             }
         }
@@ -519,14 +461,10 @@ namespace nicole {
         // Temporary list to store gas species read from the file
         std::vector<std::shared_ptr<GasSpecies>> local_gas_species_list;
 
-        // Read gas species from file into local_gas_species_list
         ReadGasSpeciesFile(file_path, local_gas_species_list);
 
-        // Determine the starting id for the gas species
         SpeciesID id = 0;
         if (!species_list_.empty()) id = species_list_.size();
-
-        // Add each gas species to the main species list and gas species list
         for (const auto& gas_species : local_gas_species_list) {
             gas_species->SetID(id++);
             species_list_.emplace_back(gas_species);
@@ -541,13 +479,10 @@ namespace nicole {
         // Temporary list to store gas species read from the file
         std::vector<std::shared_ptr<GasSpecies>> local_gas_species_list;
 
-         // Read gas species from file into local_gas_species_list
         ReadGasSpeciesFile(file_path, local_gas_species_list);
 
-        // Add gas species that match the user-specified list
         SpeciesID id = 0;
         if (!species_list_.empty()) id = species_list_.size();
-
         for (const auto& gas_species : local_gas_species_list) {
             const std::string& gas_species_name = gas_species->GetName();
             if (std::find(user_gas_species_list.begin(), user_gas_species_list.end(), gas_species_name) != user_gas_species_list.end()) {
@@ -584,24 +519,19 @@ namespace nicole {
 
     
     void SpeciesManager::GenerateDustSpecies() {
-        // Retrieve dust model parameters
         const std::size_t number_of_dust_bins = dust_species_model_parameters_.GetNumberOfDustBins();
         const int max_dust_charge_number = dust_species_model_parameters_.GetMaxDustChargeNumber();
         const int min_dust_charge_number = dust_species_model_parameters_.GetMinDustChargeNumber();
         
         SpeciesID id = species_list_.size(); // Start index from the current species list size
 
-        // Loop through each dust bin
+        // ダストのビン数と電荷数でループ
         for (std::size_t bin_number = 1; bin_number <= number_of_dust_bins; ++bin_number) {
-            // Loop through each possible charge state
             for (int dust_charge_number = min_dust_charge_number; dust_charge_number <= max_dust_charge_number; ++dust_charge_number) {
-
                 // Generate dust species name based on bin number and charge
                 std::string dust_species_name = kDustSpeciesPrefix + "s" + std::to_string(bin_number) + 
                                                 "c" + ((dust_charge_number >= 0) ? "+" : "") 
                                                 + std::to_string(dust_charge_number);
-
-                // Create dust species
                 const std::shared_ptr<DustSpecies> dust_species = std::make_shared<DustSpecies>(
                     id++,
                     dust_species_name,
@@ -609,8 +539,6 @@ namespace nicole {
                     bin_number,
                     &dust_species_model_parameters_
                 );
-
-                // Store dust species in the lists
                 species_list_.emplace_back(dust_species);
                 dust_species_list_.emplace_back(dust_species);
             }
@@ -624,17 +552,14 @@ namespace nicole {
         SpeciesID id = species_list_.size();
 
         for (const auto& dust_surface_species : dust_surface_species_list_) {
-            // Retrieve the corresponding gas species
             const auto& gas_species = dust_surface_species->GetCorrespondingGasSpecies();
             if (!gas_species) {
                 std::cerr << "Warning: Dust surface species has no corresponding gas species." << std::endl;
                 continue;
             }
 
-            // Generate the dust mantle species name
-            const std::string dust_mantle_species_name = kDustMantleSpeciesPrefix + gas_species->GetName();
-
             // Create the dust mantle species
+            const std::string dust_mantle_species_name = kDustMantleSpeciesPrefix + gas_species->GetName();
             const auto dust_mantle_species = std::make_shared<DustMantleSpecies>(
                 id++,
                 dust_mantle_species_name,
@@ -642,11 +567,9 @@ namespace nicole {
                 dust_surface_species
             );
 
-            // Add the new mantle species to the lists
             species_list_.emplace_back(dust_mantle_species);
             dust_mantle_species_list_.emplace_back(dust_mantle_species);
 
-            // Set corresponding relationships
             gas_species->SetCorrespondingMantleSpecies(dust_mantle_species);
             dust_surface_species->SetCorrespondingDustMantleSpecies(dust_mantle_species);
         }
@@ -682,45 +605,44 @@ namespace nicole {
 
     void SpeciesManager::SetUpDustRelatedSpecies(InputConfig& input) {
         GenerateDustSpecies();
-
         if (is_dust_surface_reaction_) {
-            // If dust surface reactions are enabled, read the binding energy file to set up dust surface species
             ReadBindingEnergyFile(input.GetString("binding_energy_file"));
-
-            // If three-phase reactions (gas-phase, dust surface, and dust mantle reactions) are enabled,
-            // set up dust mantle species and update diffusion barriers for the mantle species.
             if (is_three_phase_reaction_) {
                 SetUpDustMantleSpecies();
                 UpdateMantleSpeciesDiffusionBarriers();
             }
-
-            // Read the enthalpy of formation file. This file provides the enthalpy data used for calculating
-            // chemical desorption reactions on the dust surface.
             ReadEnthalpyOfFormationFile(input.GetString("enthalpy_file"));
         }
     }
 
 
     void SpeciesManager::SetUpSpecialSpeciesIndex() {
-        // Set the total number of species from the species list
         total_number_of_species_ = species_list_.size();
 
         // Initialize the indices for the special species to kNotFoundSpecies to signify that they are not yet assigned
-        index_electron_ = index_H_ = index_H2_ = index_He_ = index_CO_ = kNotFoundSpecies;
-        index_sH_ = index_sH2_ = index_mH_ = index_mH2_ = index_sH2O_ = kNotFoundSpecies;
+        id_electron_ = kNotFoundSpecies;
+        id_H_ = kNotFoundSpecies;
+        id_H2_ = kNotFoundSpecies;
+        id_He_ = kNotFoundSpecies;
+        id_CO_ = kNotFoundSpecies;
+        id_sH_ = kNotFoundSpecies;
+        id_sH2_ = kNotFoundSpecies;
+        id_mH_ = kNotFoundSpecies;
+        id_mH2_ = kNotFoundSpecies;
+        id_sH2O_ = kNotFoundSpecies;
 
         // Create a map that associates species names with their corresponding index variable
         std::unordered_map<std::string, std::size_t*> special_species_map = {
-            {kElectron, &index_electron_},
-            {"H", &index_H_},
-            {"H2", &index_H2_},
-            {"He", &index_He_},
-            {"CO", &index_CO_},
-            {"sH", &index_sH_},
-            {"sH2", &index_sH2_},
-            {"mH", &index_mH_},
-            {"mH2", &index_mH2_},
-            {"sH2O", &index_sH2O_}
+            {kElectron, &id_electron_},
+            {"H", &id_H_},
+            {"H2", &id_H2_},
+            {"He", &id_He_},
+            {"CO", &id_CO_},
+            {"sH", &id_sH_},
+            {"sH2", &id_sH2_},
+            {"mH", &id_mH_},
+            {"mH2", &id_mH2_},
+            {"sH2O", &id_sH2O_}
         };
 
         // Iterate through the species list and check for special species names
@@ -741,6 +663,19 @@ namespace nicole {
             if (species->GetSpeciesType() == SpeciesType::Gas) {
                 gas_species_name_list_.emplace_back(species->GetName());
             }
+        }
+    }
+
+
+    void SpeciesManager::SetUpNumberOfSpecies() {
+        number_of_gas_species_ = gas_species_list_.size();
+        number_of_dust_surface_species_ = dust_surface_species_list_.size();
+        number_of_dust_mantle_species_ = dust_mantle_species_list_.size();
+        number_of_dust_species_ = dust_species_list_.size();
+        total_number_of_species_ = species_list_.size();
+
+        if (total_number_of_species_ == 0) {
+            std::cout << "WARNING: 読み込まれた化学種の数が0です。" << std::endl;
         }
     }
 }
