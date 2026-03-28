@@ -1,41 +1,13 @@
-#include <iostream>
 #include <fstream>
-#include <cmath>
+#include <iostream>
 
-#include "../../nicole_src/nicole.hpp"
+#include "nicole/nicole.hpp"
+// #include "../../nicole/include/nicole/nicole.hpp"
 
-double FreeFalltime(const double rhog) 
-{
-    return std::sqrt(3.0 * M_PI / (32.0 * constants::kGravitationalConstant * rhog));
-}
-
-double BarotropicEOS(const double rhog) 
-{
-    // Tsukamoto et al. 2020
-    const double gamma = 7.0/5.0;
-    const double rho_crit = 4.0e-14;
-    const double T = 10 * (1 + gamma*std::pow(rhog/rho_crit, gamma - 1));
-    return T;
-}
-
-double IonizationRate(const double rhog, const double T) 
-{
-    const double SigmaCR = 96.0;
-    const double Sigma = std::sqrt(constants::kBoltzmannConstant * T * rhog / (M_PI * constants::kGravitationalConstant * constants::kGasMolecularMass));
-    const double zetaCR0 = 1.3e-17;
-    const double zetaCR = zetaCR0 * std::exp(-Sigma / SigmaCR);
-    const double zetaRA = 1.1e-22;
-    return zetaCR + zetaRA;
-}
-
-double MagneticField(const double nH) 
-{
-    return 1.43e-7 * std::sqrt(nH);
-}
+#include "../func.hpp"
 
 
-int main() 
-{
+int main() {
     // ユーザー設定の化学種
     std::vector<std::string> user_gas_species_list = {
         "H", "H2", "He", "CO", "O2", "Mg", "O", "C", "HCO", "H2O", 
@@ -43,38 +15,37 @@ int main()
         "CO+", "CH2+", "O2+", "H3O+", "OH+", "H2O+", "e-"
     };
 
-    // inputファイル
-    std::string filename = "input.txt";
-    InputConfig input(filename);
+    // configオブジェクトの生成
+    nicole::InputConfig config("input.txt");
     
     // 元素に関する管理クラスのオブジェクト生成
-    nicole::ElementManager element_manager(input);
+    nicole::ElementManager element_manager(config);
 
     // 化学種に関する管理クラスのオブジェクト生成
-    // nicole::SpeciesManager species_manager(&element_manager, input);
-    nicole::SpeciesManager species_manager(&element_manager, input, user_gas_species_list);
+    nicole::SpeciesManager species_manager(&element_manager, config);
+    // nicole::SpeciesManager species_manager(&element_manager, config, user_gas_species_list);
     std::string check_species_filename = "check_species.txt";
     species_manager.CheckSpeciesManager(check_species_filename);
 
     // 反応に関する管理クラスのオブジェクト生成
-    nicole::ReactionManager reaction_manager(&species_manager, input);
+    nicole::ReactionManager reaction_manager(&species_manager, config);
     std::string check_reaction_file = "check_reaction_file.txt";
     reaction_manager.CheckReactionManager(check_reaction_file);
 
     // 化学反応計算に必要な物理パラメータの設定
     nicole::EnvironmentParameters environment_parameters;
     environment_parameters.gas_number_density = 1.0e6;
-    const double rhog = 1.4 * constants::kProtonMass * environment_parameters.gas_number_density;
+    const double rhog = 1.4 * nicole::constants::kProtonMass * environment_parameters.gas_number_density;
     environment_parameters.gas_temperature = BarotropicEOS(rhog); // 10.0;
     environment_parameters.cosmic_ray_ionization_rate = 1.3e-17;
     environment_parameters.x_rays_ionization_rate = 0.0;
-    environment_parameters.visual_extinction = 15.0;
+    environment_parameters.visual_extinction = 10.0;
     environment_parameters.scaling_factor_uv_field = 1.0;
 
     std::cout << std::scientific << "T = " << environment_parameters.gas_temperature << std::endl;
 
     // 化学反応計算のクラスのオブジェクト生成
-    nicole::ReactionSimulator reaction_simulator(&species_manager, &reaction_manager, &environment_parameters, input);
+    nicole::ReactionSimulator reaction_simulator(&species_manager, &reaction_manager, &environment_parameters, config);
     std::string check_rate_file = "check_rate_file.txt";
     reaction_simulator.CheckReactionRateCoefficient(check_rate_file);
 
@@ -83,19 +54,13 @@ int main()
     double species_abundances[number_of_species];
     reaction_simulator.SetInitialSpeciesAbundances(species_abundances);
 
-    // for (int i = 0; i < number_of_species; ++i) {
-    //     if (species_abundances[i] == 0.0) continue;
-    //     std::cout << "x[" << std::setw(12) << species_manager.GetSpeciesName(i) << "] = " << std::scientific << species_abundances[i] << std::endl;
-    // }
-
     // 積分時間に関する設定
     double t = 0.0;
-    double tout = 1.0e-1 * constants::kSolarYear;
-    // const double tend = 1.0e6 * constants::kSolarYear;
+    double tout = 1.0e-1 * nicole::constants::kSolarYear;
     const double tend = FreeFalltime(rhog) * 10.0; // 1.0e6 * constants::kSolarYear;
-    std::cout << "tend = " << (tend / constants::kSolarYear) << std::endl;
+    std::cout << "tend = " << (tend / nicole::constants::kSolarYear) << std::endl;
     if (tout > tend) tout = 1.0e-2 * tend;
-    int nstep = 100;
+    const int nstep = 100;
     const double tstep = std::pow(10.0, std::log10(tend/tout)/static_cast<double>(nstep - 1));
 
     // outputの設定
