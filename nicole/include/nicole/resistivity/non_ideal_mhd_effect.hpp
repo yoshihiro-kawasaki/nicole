@@ -95,7 +95,7 @@ namespace nicole {
          * @param hall_conductivity The computed Hall conductivity.
          * @param pedersen_conductivity The computed Pedersen conductivity.
          */
-        void GetTotalConductivites(Real &ohmic_conductivity, Real &hall_conductivity, Real &pedersen_conductivity) {
+        void GetTotalConductivites(Real &ohmic_conductivity, Real &hall_conductivity, Real &pedersen_conductivity) const {
             ohmic_conductivity    = ohmic_conductivity_.total_;
             hall_conductivity     = hall_conductivity_.total_;
             pedersen_conductivity = pedersen_conductivity_.total_;
