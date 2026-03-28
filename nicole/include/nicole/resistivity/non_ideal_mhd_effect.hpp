@@ -10,9 +10,8 @@
  * https://ui.adsabs.harvard.edu/abs/2002ApJ...573..199N/abstract
  * https://ui.adsabs.harvard.edu/abs/2021MNRAS.504.5588K/abstract
  */
-
-#ifndef NON_IDEAL_MHD_EFFECT_HPP
-#define NON_IDEAL_MHD_EFFECT_HPP
+#ifndef NON_IDEAL_MHD_EFFECT_HPP_
+#define NON_IDEAL_MHD_EFFECT_HPP_
 
 #include "nicole/nicole_defs.hpp"
 #include "nicole/species/species_manager.hpp"
@@ -23,8 +22,8 @@ namespace nicole {
      * @brief Stores conductivity information for each species and total conductivity.
      */
     struct Conductivity {
-        std::vector<double> species_;   // Conductivity of each species
-        double total_;                  // Total conductivity (sum of all species conductivities)
+        std::vector<Real> species_;   // Conductivity of each species
+        Real total_;                  // Total conductivity (sum of all species conductivities)
     };
 
     /**
@@ -32,9 +31,9 @@ namespace nicole {
      * @brief Stores resistivity data for Ohmic, Hall, and Ambipolar effects.
      */
     struct MagneticResistivity {
-        double ohmic_;      // Ohmic resistivity [cm^2 s^-1]
-        double hall_;       // Hall resistivity [cm^2 s^-1]
-        double ambipolar_;  // Ambipolar resistivity [cm^ s^-1]
+        Real ohmic_;      // Ohmic resistivity [cm^2 s^-1]
+        Real hall_;       // Hall resistivity [cm^2 s^-1]
+        Real ambipolar_;  // Ambipolar resistivity [cm^ s^-1]
     };
 
     /**
@@ -46,34 +45,6 @@ namespace nicole {
      * various species and environmental parameters.
      */
     class NonIdealMHDeffect {
-    private:
-        // Pointer to SpeciesManager
-        SpeciesManager* ptr_species_manager_;
-        
-        // Pointer to environmental parameters
-        EnvironmentParameters* ptr_environment_parameters_;
-        
-        // Hall parameters for species
-        std::vector<double> hall_parameters_;
-        
-        // conductivity data
-        Conductivity ohmic_conductivity_;     // Ohmic conductivity data
-        Conductivity hall_conductivity_;      // Hall conductivity data
-        Conductivity pedersen_conductivity_;  // Pedersen conductivity data;
-        
-        // Magnetic resistivity data
-        MagneticResistivity resistivity_;
-
-        // specific sepcies index
-        std::size_t index_H_;
-        std::size_t index_H2_;
-        std::size_t index_He_;
-
-        // specific species masses
-        double mass_H_;
-        double mass_H2_;
-        double mass_He_;
-
     public:
 
         /**
@@ -88,11 +59,16 @@ namespace nicole {
         NonIdealMHDeffect(SpeciesManager *ptr_species_manager, EnvironmentParameters* ptr_environment_conditions);
 
         /**
-         * @brief Calculates Hall parameters based on species abundances.
+         * @brief Calculate the Hall parameters for each species based on their abundances.
          * 
-         * @param species_abundances Array of species abundances.
+         * The Hall parameter is the ratio of the drag force acting on the species due to neutral particles 
+         * (such as H2, H, He) to the Lorentz force. 
+         * - If the Hall parameter is greater than 1, the Lorentz force dominates.
+         * - If the Hall parameter is less than 1, the drag force due to neutrals dominates.
+         * 
+         * @param species_abundances The abundances of each species.
          */
-        void CalculateHallParameters(const double *species_abundances);
+        void CalculateHallParameters(const Real *species_abundances);
 
         /**
          * @brief Calculates the conductivities for Ohmic, Hall, and Pedersen effects.
@@ -102,7 +78,7 @@ namespace nicole {
          * 
          * @param species_abundances Array of species abundances.
          */
-        void CalculateConductivities(const double *species_abundances);
+        void CalculateConductivities(const Real *species_abundances);
 
         /**
          * @brief Calculates the resistivities for Ohmic, Hall, and Ambipolar effects.
@@ -119,7 +95,7 @@ namespace nicole {
          * @param hall_conductivity The computed Hall conductivity.
          * @param pedersen_conductivity The computed Pedersen conductivity.
          */
-        void GetTotalConductivites(double &ohmic_conductivity, double &hall_conductivity, double &pedersen_conductivity) {
+        void GetTotalConductivites(Real &ohmic_conductivity, Real &hall_conductivity, Real &pedersen_conductivity) {
             ohmic_conductivity    = ohmic_conductivity_.total_;
             hall_conductivity     = hall_conductivity_.total_;
             pedersen_conductivity = pedersen_conductivity_.total_;
@@ -131,57 +107,75 @@ namespace nicole {
          * @param species_name The name of the species.
          * @return The Ohmic conductivity of the species, or 0.0 if the species is not found.
          */
-        double GetSpeciesOhmicConductivityByName(const std::string& species_name) const;
+        Real GetSpeciesOhmicConductivityByName(const std::string& species_name) const;
 
         /**
-         * @brief Get the Ohmic conductivity of a species by its index.
+         * @brief Get the Ohmic conductivity of a species by its id.
          * @param index The index of the species.
          * @return The Ohmic conductivity of the species, or 0.0 if the index is invalid.
          */
-        double GetSpeciesOhmicConductivityByIndex(const std::size_t index) const;
+        Real GetSpeciesOhmicConductivityByID(const std::size_t id) const;
 
         /**
          * @brief Get the Hall conductivity of a species by its name.
          * @param species_name The name of the species.
          * @return The Hall conductivity of the species, or 0.0 if the species is not found.
          */
-        double GetSpeciesHallConductivityByName(const std::string& species_name) const;
+        Real GetSpeciesHallConductivityByName(const std::string& species_name) const;
 
         /**
-         * @brief Get the Hall conductivity of a species by its index.
+         * @brief Get the Hall conductivity of a species by its id.
          * @param index The index of the species.
          * @return The Hall conductivity of the species, or 0.0 if the index is invalid.
          */
-        double GetSpeciesHallConductivityByIndex(const std::size_t index) const;
+        Real GetSpeciesHallConductivityByID(const std::size_t id) const;
 
         /**
          * @brief Get the Pedersen conductivity of a species by its name.
          * @param species_name The name of the species.
          * @return The Pedersen conductivity of the species, or 0.0 if the species is not found.
          */
-        double GetSpeciesPedersenConductivityByName(const std::string& species_name) const;
+        Real GetSpeciesPedersenConductivityByName(const std::string& species_name) const;
 
         /**
-         * @brief Get the Pedersen conductivity of a species by its index.
+         * @brief Get the Pedersen conductivity of a species by its id.
          * @param index The index of the species.
          * @return The Pedersen conductivity of the species, or 0.0 if the index is invalid.
          */
-        double GetSpeciesPedersenConductivityByIndex(const std::size_t index) const;
+        Real GetSpeciesPedersenConductivityByID(const std::size_t id) const;
 
         /**
-         * @brief Retrieves the resistivity values.
-         * 
-         * @param ohmic_resistivity The computed Ohmic resistivity.
-         * @param hall_resistivity The computed Hall resistivity.
-         * @param ambipolar_resistivity The computed Ambipolar resistivity.
+         * @brief Get the resistivity values.
          */
-        void GetResistivite(double &ohmic_resistivity, double &hall_resistivity, double &ambipolar_resistivity) {
+        void GetResistivite(Real &ohmic_resistivity, Real &hall_resistivity, Real &ambipolar_resistivity) const {
             ohmic_resistivity     = resistivity_.ohmic_;
             hall_resistivity      = resistivity_.hall_;
             ambipolar_resistivity = resistivity_.ambipolar_;
             return;
         }
+
+    private:
+        SpeciesManager* ptr_species_manager_;
+        EnvironmentParameters* ptr_environment_parameters_;
+        
+        std::vector<Real> hall_parameters_;
+        
+        Conductivity ohmic_conductivity_;
+        Conductivity hall_conductivity_;
+        Conductivity pedersen_conductivity_;
+        
+        MagneticResistivity resistivity_;
+
+        // specific sepcies id
+        std::size_t id_H_;
+        std::size_t id_H2_;
+        std::size_t id_He_;
+
+        // specific species masses
+        Real mass_H_;
+        Real mass_H2_;
+        Real mass_He_;
     };
 }
 
-#endif /* NON_IDEAL_MHD_EFFECT_HPP */
+#endif /* NON_IDEAL_MHD_EFFECT_HPP_ */
