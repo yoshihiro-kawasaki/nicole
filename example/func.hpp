@@ -26,7 +26,7 @@ double IonizationRate(const double rhog, const double T) {
          (M_PI * nicole::constants::kGravitationalConstant * nicole::constants::kGasMolecularMass));
     const double zetaCR0 = 1.3e-17;
     const double zetaCR = zetaCR0 * std::exp(-Sigma / SigmaCR);
-    const double zetaRA = 1.1e-22;
+    const double zetaRA = 7.3e-19;
     return zetaCR + zetaRA;
 }
 

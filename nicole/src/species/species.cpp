@@ -86,7 +86,7 @@ namespace nicole {
         for (ElementID id = 0; id < number_of_elements; ++id) {
             mass_ += ptr_element_manager_->GetElementMass(id) * static_cast<Real>(element_composition_[id]);
         }
-        mass_ *= constants::kElectronMass;
+        mass_ *= constants::kProtonMass;
         return;
     }
 }

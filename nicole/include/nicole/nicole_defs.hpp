@@ -26,7 +26,7 @@ namespace nicole {
     constexpr Real kStickingProbabilityElectron = 0.6;          // Sticking probability for electrons
     constexpr Real kStickingProbabilityIon = 1.0;               // Sticking probability for ions
     constexpr Real kMinimumRateCoefficient = 1.0e-99;           // Minimum rate coefficient for reactions
-    constexpr Real kMinimumSpeciesAbundance = 0.0;              // Minimum species abundance for calculations
+    constexpr Real kMinimumSpeciesAbundance = 1.0e-99;          // Minimum species abundance for calculations
     constexpr Real kOdepackMinimumAbsoluteTolerance = 1.0e-99;  // Minimum absolute tolerance for ODE solver
 
 

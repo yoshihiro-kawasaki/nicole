@@ -89,7 +89,7 @@ int main() {
 
         // 積分時間に関する設定
         double t = 0.0;
-        double tend = FreeFalltime(gas_mass_density) * 3.0;
+        double tend = FreeFalltime(gas_mass_density) * 10.0;
         double tout = 1.0e-1 * nicole::constants::kSolarYear;
         if (tout > tend) tout = 1.0e-2 * tend;
         int nstep = 100;

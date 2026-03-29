@@ -457,7 +457,7 @@ namespace nicole {
             const Real dust_cross_section = reaction->rate_parameters_[dust_and_charged_particle_collison_params::kDustCrossSection];
             const Real sticking_probability = reaction->rate_parameters_[dust_and_charged_particle_collison_params::kStickingProbability];
 
-            // // Calculate the collision rate coefficient based on the charge interaction model
+            // Calculate the collision rate coefficient based on the charge interaction model
             Real thermal_velocity = thermal_velocity_coefficient / std::sqrt(gas_mass);
             Real tau = tau_coefficient * dust_size / SQR(gas_charge);
             Real nu = dust_charge / gas_charge;
@@ -1315,8 +1315,6 @@ namespace nicole {
         if (!file.is_open()) {
             return false;
         }
-
-        // const size_t number_of_species = ptr_species_manager_->total_number_of_species_;
 
         if (is_lsode_integrator_) {
             lsode_parameters_.itol = 2;
