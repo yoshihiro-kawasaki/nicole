@@ -28,8 +28,11 @@ namespace nicole {
     }
 
 
-    void NonIdealMHDeffect::CalculateHallParameters(const Real *species_abundances) {
-        const std::size_t number_of_species = ptr_species_manager_->total_number_of_species_;
+    void NonIdealMHDeffect::CalculateHallParameters(const Real *species_abundances, const std::size_t number_of_species) {
+        if (number_of_species != ptr_species_manager_->total_number_of_species_) {
+            std::cout << "Warning: 引数のnumber_of_speciesの値が計算の化学種の数とは異なっています。" << std::endl;
+            return;
+        }
         const Real gas_number_density = ptr_environment_parameters_->gas_number_density;
 
         // Calculate mass density of H, H2, He based on species abundances.
@@ -186,7 +189,18 @@ namespace nicole {
     }
 
 
-    void NonIdealMHDeffect::CalculateConductivities(const Real *species_abundances) {
+    void NonIdealMHDeffect::CalculateHallParameters(const std::vector<Real>& species_abundances) {
+        CalculateHallParameters(species_abundances.data(), species_abundances.size());
+        return;
+    }
+
+
+    void NonIdealMHDeffect::CalculateConductivities(const Real *species_abundances, const std::size_t number_of_species) {
+        if (number_of_species != ptr_species_manager_->total_number_of_species_) {
+            std::cout << "Warning: 引数のnumber_of_speciesの値が計算の化学種の数とは異なっています。" << std::endl;
+            return;
+        }
+
         // Initialize conductivities to zero
         ohmic_conductivity_.total_    = 0.0;
         hall_conductivity_.total_     = 0.0;
@@ -195,7 +209,6 @@ namespace nicole {
         const Real number_density = ptr_environment_parameters_->gas_number_density;
         const Real magnetic_field = ptr_environment_parameters_->magnetic_field;
         const Real ecn_B = constants::kChargeUnit * constants::kSpeedOfLight * number_density / magnetic_field;
-        const std::size_t number_of_species = ptr_species_manager_->total_number_of_species_;
 
         // Calculate individual species conductivities
         for (std::size_t ispe = 0; ispe < number_of_species; ++ispe) {
@@ -212,6 +225,12 @@ namespace nicole {
             pedersen_conductivity_.species_[ispe] = ecn_B * species_abundances[ispe] * species_charge * hall_parameters_[ispe] / (1.0 + SQR(hall_parameters_[ispe]));
             pedersen_conductivity_.total_ += pedersen_conductivity_.species_[ispe];
         }
+    }
+
+
+    void NonIdealMHDeffect::CalculateConductivities(const std::vector<Real>& species_abundances) {
+        CalculateConductivities(species_abundances.data(), species_abundances.size());
+        return;
     }
 
 

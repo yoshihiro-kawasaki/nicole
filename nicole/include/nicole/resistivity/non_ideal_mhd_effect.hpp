@@ -68,7 +68,8 @@ namespace nicole {
          * 
          * @param species_abundances The abundances of each species.
          */
-        void CalculateHallParameters(const Real *species_abundances);
+        void CalculateHallParameters(const Real *species_abundances, const std::size_t number_of_species);
+        void CalculateHallParameters(const std::vector<Real>& species_abundances);
 
         /**
          * @brief Calculates the conductivities for Ohmic, Hall, and Pedersen effects.
@@ -78,7 +79,8 @@ namespace nicole {
          * 
          * @param species_abundances Array of species abundances.
          */
-        void CalculateConductivities(const Real *species_abundances);
+        void CalculateConductivities(const Real *species_abundances, const std::size_t number_of_species);
+        void CalculateConductivities(const std::vector<Real>& species_abundances);
 
         /**
          * @brief Calculates the resistivities for Ohmic, Hall, and Ambipolar effects.

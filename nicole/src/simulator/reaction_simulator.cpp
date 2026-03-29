@@ -51,8 +51,12 @@ namespace nicole {
     ReactionSimulator::~ReactionSimulator() { }
 
 
-    void ReactionSimulator::CheckCalculationResult(const Real *species_abundances) const {
-        const std::size_t number_of_total_species = ptr_species_manager_->total_number_of_species_;
+    void ReactionSimulator::CheckCalculationResult(const Real *species_abundances, const std::size_t number_of_species) const {
+        if (number_of_species != ptr_species_manager_->total_number_of_species_) {
+            std::cout << "Warning: 引数のnumber_of_speciesの値が計算の化学種の数とは異なっています。" << std::endl;
+            return;
+        }
+        // const std::size_t number_of_total_species = ptr_species_manager_->total_number_of_species_;
         const Real gas_number_density = ptr_environment_parameters_->gas_number_density;
 
         Real total_charge = 0.0;
@@ -62,7 +66,7 @@ namespace nicole {
         Real mean_dust_charge = 0.0;
 
         // Compute charge
-        for (std::size_t i = 0; i < number_of_total_species; ++i) {
+        for (std::size_t i = 0; i < number_of_species; ++i) {
             const auto& species = ptr_species_manager_->species_list_[i];
             Real charge = static_cast<Real>(species->GetCharge());
 
@@ -92,7 +96,7 @@ namespace nicole {
         Real err_dust = std::abs((total_dust_number_density_result - dust_number_density) / dust_number_density);
 
         // Print the results of the calculation
-        for (std::size_t index = 0; index < number_of_total_species; ++index) {
+        for (std::size_t index = 0; index < number_of_species; ++index) {
             std::cout << "x[" << std::setw(12) << ptr_species_manager_->GetSpeciesName(index) << "] = " 
                       << std::scientific << std::setw(15) << species_abundances[index] << std::endl;
         }
@@ -104,6 +108,12 @@ namespace nicole {
         std::cout << "total cation number density       = " << std::setw(15) << cation_density << std::endl;
         std::cout << "total antion number density       = " << std::setw(15) << anion_density << std::endl;
         std::cout << "electron number density           = " << std::setw(15) << species_abundances[ptr_species_manager_->id_electron_] << std::endl;
+    }
+
+
+    void ReactionSimulator::CheckCalculationResult(const std::vector<Real>& species_abundances) const {
+        CheckCalculationResult(species_abundances.data(), species_abundances.size());
+        return;
     }
 
 
@@ -119,7 +129,7 @@ namespace nicole {
             y[i] = 1.0e-5;
             ydot[i] = 0.0;
         }
-        SetInitialSpeciesAbundances(y.data());
+        SetInitialSpeciesAbundances(y);
         CalculateRateCoefficient();
         OrdinaryDifferentialEquation(n, 0.0, y.data(), ydot.data(), this);
 
@@ -134,8 +144,11 @@ namespace nicole {
     }
 
 
-    void ReactionSimulator::SetInitialSpeciesAbundances(Real* species_abundances) {
-        std::size_t number_of_species = ptr_species_manager_->total_number_of_species_;
+    void ReactionSimulator::SetInitialSpeciesAbundances(Real* species_abundances, const std::size_t number_of_species) {
+        if (number_of_species != ptr_species_manager_->total_number_of_species_) {
+            std::cout << "Warning: 引数のnumber_of_speciesの値が計算の化学種の数とは異なっています。" << std::endl;
+            return;
+        }
 
         // Set initialize species abundances. See also ReadAbundancesFile.
         for (std::size_t id = 0; id < number_of_species; ++id) {
@@ -187,6 +200,12 @@ namespace nicole {
                 species_abundances[id] = kMinimumSpeciesAbundance;
             }
         }
+    }
+
+
+    void ReactionSimulator::SetInitialSpeciesAbundances(std::vector<Real>& species_abundances) {
+        SetInitialSpeciesAbundances(species_abundances.data(), species_abundances.size());
+        return;
     }
 
 
@@ -484,7 +503,7 @@ namespace nicole {
             const Real dust_mass1 = reaction->rate_parameters_[dust_collision_params::kDustMass1];
             const Real dust_mass2 = reaction->rate_parameters_[dust_collision_params::kDustMass2];
 
-            // // Calculate the collision rate coefficient based on the formula
+            // Calculate the collision rate coefficient based on the formula
             const Real reduced_mass = dust_mass1 * dust_mass2 / (dust_mass1 + dust_mass2);
             const Real thermal_velocity = thermal_velocity_coef / std::sqrt(reduced_mass);
             reaction_rate_coefficient_[ireac]
@@ -1178,8 +1197,12 @@ namespace nicole {
     }
 
 
-    bool ReactionSimulator::Integrate(Real &t, const Real tout, Real *species_abundance) {
-        const size_t number_of_species = ptr_species_manager_->total_number_of_species_;
+    bool ReactionSimulator::Integrate(Real &t, const Real tout, Real *species_abundance, const std::size_t number_of_species) {
+        // const size_t number_of_species = ptr_species_manager_->total_number_of_species_;
+        if (number_of_species != ptr_species_manager_->total_number_of_species_) {
+            std::cout << "Warning: 引数のnumber_of_speciesの値が計算の化学種の数とは異なっています。" << std::endl;
+            return false;
+        }
 
         if (is_lsode_integrator_) {
             lsode_parameters_.itol = 2;
@@ -1278,12 +1301,22 @@ namespace nicole {
     }
 
 
-    bool ReactionSimulator::Integrate(Real &t, const Real tout, Real *species_abundance, std::ofstream& file) {
+    bool ReactionSimulator::Integrate(Real &t, const Real tout, std::vector<Real>& species_abundance) {
+        return Integrate(t, tout, species_abundance.data(), species_abundance.size());
+    }
+
+
+    bool ReactionSimulator::Integrate(Real &t, const Real tout, Real *species_abundance, const std::size_t number_of_species, std::ofstream& file) {
+        if (number_of_species != ptr_species_manager_->total_number_of_species_) {
+            std::cout << "Warning: 引数のnumber_of_speciesの値が計算の化学種の数とは異なっています。" << std::endl;
+            return false;
+        }
+
         if (!file.is_open()) {
             return false;
         }
 
-        const size_t number_of_species = ptr_species_manager_->total_number_of_species_;
+        // const size_t number_of_species = ptr_species_manager_->total_number_of_species_;
 
         if (is_lsode_integrator_) {
             lsode_parameters_.itol = 2;
@@ -1382,6 +1415,11 @@ namespace nicole {
             }
             return true;
         }
+    }
+
+
+    bool ReactionSimulator::Integrate(Real &t, const Real tout, std::vector<Real>& species_abundance, std::ofstream& file) {
+        return Integrate(t, tout, species_abundance.data(), species_abundance.size(), file);
     }
 
 

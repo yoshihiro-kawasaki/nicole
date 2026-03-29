@@ -73,7 +73,8 @@ namespace nicole {
 
         ~ReactionSimulator();
 
-        void CheckCalculationResult(const Real *species_abundances) const;
+        void CheckCalculationResult(const Real *species_abundances, const std::size_t number_of_species) const;
+        void CheckCalculationResult(const std::vector<Real>& species_abundances) const;
         void CheckReactionRateCoefficient(const std::string filename);
 
         /**
@@ -81,7 +82,8 @@ namespace nicole {
          * 
          * @param species_abundances Array of species abundances.
          */
-        void SetInitialSpeciesAbundances(Real* species_abundances);
+        void SetInitialSpeciesAbundances(Real* species_abundances, const std::size_t number_of_species);
+        void SetInitialSpeciesAbundances(std::vector<Real>& species_abundances);
 
         /**
          * @brief Integrate species abundances over time using LSODE or LSODES.
@@ -91,7 +93,8 @@ namespace nicole {
          * @param species_abundances Array to store the integrated species abundances.
          * @return true if integration was successful, false otherwise.
          */
-        bool Integrate(Real &t, const Real tout, Real *species_abundances);
+        bool Integrate(Real &t, const Real tout, Real *species_abundances, const std::size_t number_of_species);
+        bool Integrate(Real &t, const Real tout, std::vector<Real>& species_abundances);
 
         /**
          * @brief Integrate species abundances over time and write output to a file.
@@ -102,7 +105,8 @@ namespace nicole {
          * @param file Output file stream to write results.
          * @return true if integration was successful, false otherwise.
          */
-        bool Integrate(Real &t, const Real tout, Real *species_abundances, std::ofstream& file);
+        bool Integrate(Real &t, const Real tout, Real *species_abundances, const std::size_t number_of_species, std::ofstream& file);
+        bool Integrate(Real &t, const Real tout, std::vector<Real> &species_abundances, std::ofstream& file);
 
         /**
          * @brief Calculate the rate coefficients for reactions.
