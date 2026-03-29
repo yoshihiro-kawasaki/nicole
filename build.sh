@@ -4,8 +4,8 @@
 set -e
 
 # 古いビルドディレクトリの削除
-echo "Cleaning build directory..."
-rm -rf build
+# echo "Cleaning build directory..."
+# rm -rf build
 
 # CMakeの構成
 # -S . : ソースは現在のディレクトリ
