@@ -20,7 +20,7 @@ is_H2_desorption              : false
 number_of_dust_bins           : 1
 min_dust_charge_number        : -1
 max_dust_charge_number        : 1
-dust_internal_density         : 2.0    [g cm^-3]
+dust_internal_density         : 3.0    [g cm^-3]
 dust_minimum_size             : 1.0e-5 [cm]
 dust_maximum_size             : 1.0e-5 [cm]
 power_index                   : -3.5
@@ -28,4 +28,4 @@ dust_to_gas_mass_ratio        : 1.0e-2
 
 # integration setting parameters
 reltol : 1.0e-4
-abstol : 1.0e-16
+abstol : 1.0e-15

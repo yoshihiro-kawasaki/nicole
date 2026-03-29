@@ -781,15 +781,15 @@ namespace nicole {
         }
 
         // type3 Dissociation or ionization of neutral species by UV photons with a standard interstellar UV field.
-        const Real visual_extinction  = ptr_environment_parameters_->visual_extinction;
-        const Real scaling_factor_uv_field = ptr_environment_parameters_->scaling_factor_uv_field;
-        ireac_start = ptr_reaction_manager_->reaction_type_id_start_[reaction_type_id::kGasPhase3];
-        ireac_end = ptr_reaction_manager_->reaction_type_id_end_[reaction_type_id::kGasPhase3];
-        for (std::size_t ireac = ireac_start; ireac <= ireac_end; ++ireac) {
-            const auto& reaction = ptr_reaction_manager_->reaction_list_[ireac];
-            reaction_rate_coefficient_[ireac] = reaction->rate_parameters_[0] 
-                * std::exp(-reaction->rate_parameters_[2] * visual_extinction) * scaling_factor_uv_field;
-        }
+        // const Real visual_extinction  = ptr_environment_parameters_->visual_extinction;
+        // const Real scaling_factor_uv_field = ptr_environment_parameters_->scaling_factor_uv_field;
+        // ireac_start = ptr_reaction_manager_->reaction_type_id_start_[reaction_type_id::kGasPhase3];
+        // ireac_end = ptr_reaction_manager_->reaction_type_id_end_[reaction_type_id::kGasPhase3];
+        // for (std::size_t ireac = ireac_start; ireac <= ireac_end; ++ireac) {
+        //     const auto& reaction = ptr_reaction_manager_->reaction_list_[ireac];
+        //     reaction_rate_coefficient_[ireac] = reaction->rate_parameters_[0] 
+        //         * std::exp(-reaction->rate_parameters_[2] * visual_extinction) * scaling_factor_uv_field;
+        // }
 
         // type4-8 Bimolecular reactions includes all chemical reactions between two species.
         CalculateGasPhaseReactionRateCoefficient();
