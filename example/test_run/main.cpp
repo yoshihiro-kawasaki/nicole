@@ -1,9 +1,8 @@
 #include <fstream>
 #include <iostream>
+#include <vector>
 
 #include "nicole/nicole.hpp"
-// #include "../../nicole/include/nicole/nicole.hpp"
-
 #include "../func.hpp"
 
 
@@ -22,8 +21,8 @@ int main() {
     nicole::ElementManager element_manager(config);
 
     // 化学種に関する管理クラスのオブジェクト生成
-    nicole::SpeciesManager species_manager(&element_manager, config);
-    // nicole::SpeciesManager species_manager(&element_manager, config, user_gas_species_list);
+    // nicole::SpeciesManager species_manager(&element_manager, config);
+    nicole::SpeciesManager species_manager(&element_manager, config, user_gas_species_list);
     std::string check_species_filename = "check_species.txt";
     species_manager.CheckSpeciesManager(check_species_filename);
 
@@ -51,7 +50,7 @@ int main() {
 
     // 化学種の存在量を格納する配列の初期化
     const std::size_t number_of_species = species_manager.GetTotalNumberOfSpecies();
-    double species_abundances[number_of_species];
+    std::vector<double> species_abundances(number_of_species);
     reaction_simulator.SetInitialSpeciesAbundances(species_abundances);
 
     // 積分時間に関する設定
@@ -86,10 +85,7 @@ int main() {
 
     // 積分の実行
     for (int i = 1; i <= nstep; ++i) {
-        // const double dt = tout - t;
-        // bool success = reaction_simulator.Integrate(t, tout, species_abundances, file);
         bool success = reaction_simulator.Integrate(t, tout, species_abundances, file);
-        // std::cout << std::scientific << (dt/constants::kSolarYear) << " " << (t/constants::kSolarYear) << " " << (tout/constants::kSolarYear) << std::endl;
         tout *= tstep;
         if (!success) break;
     }
