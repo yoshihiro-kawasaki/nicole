@@ -1,11 +1,17 @@
 Calculation of chemical reaction and non-ideal MHD resistivity for astropyscis
 
-odepack_cppの取得（更新）
-```bash
-./scripts/clone_odepack_cpp.sh
-```
-
+## ビルド
 ```bash
 ./build.sh
-g++ -O3 test.cpp -I ./nicole/include -L ./build/nicole -lnicole -I ./odepack_cpp/include -L ./build/odepack_cpp -lodepack_cpp
 ```
+
+## exampleの実行
+example内にtest_runとtest_resistivity
+```bash
+./compile.sh main.cpp
+```
+実行
+```bash
+./run
+```
+`plot.ipynb`に結果のプロットを行う。

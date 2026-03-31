@@ -1,3 +1,8 @@
+#
+# odepack_cppの取得（更新）
+# ./scripts/clone_odepack_cpp.sh
+#
+
 #!/usr/bin/env bash
 
 set -e
